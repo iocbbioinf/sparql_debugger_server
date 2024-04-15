@@ -1,19 +1,17 @@
 package cz.iocb.idsm.debugger.service;
 
-import cz.iocb.idsm.debugger.model.SparqlQueryNode;
+import cz.iocb.idsm.debugger.model.SparqlQueryInfo;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 @SpringBootTest
-public class SparqlQueryServiceTest {
+public class SparqlQueryInfoServiceTest {
 
     SparqlQueryService sparqlQueryService;
 
     @Autowired
-    public SparqlQueryServiceTest(SparqlQueryService sparqlQueryService) {
+    public SparqlQueryInfoServiceTest(SparqlQueryService sparqlQueryService) {
         this.sparqlQueryService = sparqlQueryService;
     }
 
@@ -57,7 +55,7 @@ public class SparqlQueryServiceTest {
 
         String testEndpoint = "http://test.org";
 
-        SparqlQueryNode root = sparqlQueryService.createQueryTree(testEndpoint, query, 1L);
+        SparqlQueryInfo root = sparqlQueryService.createQueryTree(testEndpoint, query, 1L);
 
         System.out.println("MMO-tmp - root: " + root.toString());
 

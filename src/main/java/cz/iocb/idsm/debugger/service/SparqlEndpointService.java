@@ -1,11 +1,17 @@
 package cz.iocb.idsm.debugger.service;
 
-import cz.iocb.idsm.debugger.model.EndpointNode;
-import cz.iocb.idsm.debugger.model.ProxyQueryParams;
-import cz.iocb.idsm.debugger.model.SparqlQueryNode;
+import cz.iocb.idsm.debugger.model.EndpointCall;
+import cz.iocb.idsm.debugger.model.SparqlQueryInfo;
+import cz.iocb.idsm.debugger.model.Tree.Node;
+
+
+import java.util.Map;
+import java.util.Optional;
 
 public interface SparqlEndpointService {
-    void executeService(Long queryId, String query, SparqlQueryNode queryNode, EndpointNode parentNode);
-    SparqlQueryNode createQuery(String query);
-    void executeQuery(String query, ProxyQueryParams proxyQueryParams);
+    Node<EndpointCall>  createServiceEndpointNode(SparqlQueryInfo sparqlQueryInfo, Node<EndpointCall> parentNode);
+    Node<EndpointCall> createQueryEndpointRoot(String endpoint, String query);
+    void callEndpoint(Map<String, String> headerMap, String query, Node<EndpointCall> endpointCallNode);
+    Optional<Node<EndpointCall>> getEndpointNode(Long queryId, Long nodeId);
+
 }
