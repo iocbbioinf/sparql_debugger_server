@@ -1,10 +1,7 @@
 package cz.iocb.idsm.debugger.service;
 
 import cz.iocb.idsm.debugger.grammar.SparqlLexerDebug;
-import cz.iocb.idsm.debugger.model.ProxyQueryParams;
-import cz.iocb.idsm.debugger.model.SparqlDebugException;
-import cz.iocb.idsm.debugger.model.SparqlQueryInfo;
-import cz.iocb.idsm.debugger.model.Tree;
+import cz.iocb.idsm.debugger.model.*;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.Token;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +12,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 
+import static cz.iocb.idsm.debugger.util.HttpUtil.*;
 import static cz.iocb.idsm.debugger.util.IriUtil.unwrapIri;
 
 @Service
@@ -28,17 +26,18 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
     @Value("${debugService}")
     private String debugServiceUriStr;
 
-    public static final String PARAM_NODE_ID = "dNodeId";
     @Override
-    public SparqlQueryInfo createQueryTree(String endpoint, String query, Long queryId) throws SparqlDebugException {
+    public Tree<SparqlQueryInfo> createQueryTree(String endpoint, String query, Long queryId) throws SparqlDebugException {
         try {
             SparqlLexerDebug lexer = new SparqlLexerDebug(new ANTLRInputStream(query));
 
             Long nodeIndex = 0L;
 
-            SparqlQueryInfo rootNode = new SparqlQueryInfo(new URI(endpoint), query, queryId, nodeIndex, null);
+            SparqlQueryInfo rootNode = new SparqlQueryInfo(new URI(endpoint), query, queryId, nodeIndex);
+            Tree<SparqlQueryInfo> resultTree = new Tree<>(rootNode);
+
             Stack<QueryStackElement> nodeStack = new Stack<>();
-            nodeStack.push(new QueryStackElement(rootNode, new StringBuilder(), 0));
+            nodeStack.push(new QueryStackElement(resultTree.getRoot(), new StringBuilder(), 0));
 
             boolean inService = false;
             QueryStackElement newStackElement = null;
@@ -58,10 +57,10 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                     case SparqlLexerDebug.IRIREF -> {
                         if (inService) {
                             nodeIndex++;
-                            SparqlQueryInfo queryNode = new SparqlQueryInfo(new URI(unwrapIri(token.getText())), null, queryId, nodeIndex, nodeStack.peek().queryNode);
-                            nodeStack.peek().queryNode.children.add(queryNode);
+                            SparqlQueryInfo queryNode = new SparqlQueryInfo(new URI(unwrapIri(token.getText())), null, queryId, nodeIndex);
+                            Node<SparqlQueryInfo> newNode = nodeStack.peek().queryNode.addNode(queryNode);
                             newStackElement = new QueryStackElement(
-                                    queryNode,
+                                    newNode,
                                     new StringBuilder(), 0);
                         }
                     }
@@ -78,19 +77,19 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
 
                     case SparqlLexerDebug.CLOSE_CURLY_BRACE -> {
                         nodeStack.peek().inServiceBodyLevel--;
-                        if (nodeStack.peek().inServiceBodyLevel == 0 && nodeStack.peek().queryNode.parentNode != null) {
+                        if (nodeStack.peek().inServiceBodyLevel == 0 && nodeStack.peek().queryNode.getParent() != null) {
                             String body = nodeStack.peek().sb.toString();
-                            nodeStack.peek().queryNode.query = body.substring(0, body.length() - 1);
+                            nodeStack.peek().queryNode.getData().query = body.substring(0, body.length() - 1);
                             nodeStack.pop();
                         }
                     }
                 }
             }
 
-            nodeStack.peek().queryNode.query = nodeStack.peek().sb.toString();
+            nodeStack.peek().queryNode.getData().query = nodeStack.peek().sb.toString();
 
 
-            return rootNode;
+            return resultTree;
 
         } catch (URISyntaxException e) {
             throw new SparqlDebugException(e);
@@ -98,11 +97,11 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
     }
 
     private static class QueryStackElement {
-        SparqlQueryInfo queryNode;
+        Node<SparqlQueryInfo> queryNode;
         StringBuilder sb;
         Integer inServiceBodyLevel;
 
-        public QueryStackElement(SparqlQueryInfo queryNode, StringBuilder sb, Integer inServiceBodyLevel) {
+        public QueryStackElement(Node<SparqlQueryInfo> queryNode, StringBuilder sb, Integer inServiceBodyLevel) {
             this.queryNode = queryNode;
             this.sb = sb;
             this.inServiceBodyLevel = inServiceBodyLevel;
@@ -110,9 +109,10 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
     }
 
     @Override
-    public String injectOuterServices(String endpoint, String query, ProxyQueryParams proxyQueryParams) {
+    public String injectOuterServices(String query, EndpointCall endpointCall) {
         SparqlLexerDebug lexer = new SparqlLexerDebug(new ANTLRInputStream(query));
 
+        Integer injectionCounter = 0;
         boolean inService = false;
         int inServiceBodyLevel = 0;
         StringBuilder sb = new StringBuilder();
@@ -128,9 +128,12 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                     }
                     case SparqlLexerDebug.IRIREF -> {
                         if (inService) {
+                            Long subqueryId = getChildSubbqueryId(endpointCall.queryNode, injectionCounter);
+                            ProxyQueryParams proxyQueryParams =
+                                    new ProxyQueryParams(endpointCall.queryId, endpointCall.nodeId, subqueryId);
                             String iri = token.getText();
-
-                            newTokenStr = injectUrl(iri, null);
+                            newTokenStr = injectUrl(iri, proxyQueryParams);
+                            injectionCounter ++;
                         }
                     }
                 }
@@ -167,14 +170,20 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
 
     }
 
+    private Long getChildSubbqueryId(Node<SparqlQueryInfo> queryNode, Integer position) {
+        return queryNode.getChildren().get(position).getData().nodeId;
+    }
 
-    private String injectUrl(SparqlQueryInfo queryNode) {
+    private String injectUrl(String endpoint, ProxyQueryParams proxyQueryParams) {
 
         try {
             return addQueryParam(new URI(debugServiceUriStr),
-                    PARAM_NODE_ID + "=" + queryNode.nodeId.toString()).toString();
+                    PARAM_ENDPOINT + "=" + endpoint,
+                    PARAM_QUERY_ID + "=" + proxyQueryParams.getQueryId(),
+                    PARAM_PARENT_CALL_ID + "=" + proxyQueryParams.getParentId(),
+                    PARAM_SUBQUERY_ID + "=" + proxyQueryParams.getSubQueryId()).toString();
         } catch (URISyntaxException e) {
-            throw new SparqlDebugException("debugService sys. variable hasn't valid URI value.", e);
+            throw new SparqlDebugException("Service IRI in query isn't valid.", e);
         }
 
     }

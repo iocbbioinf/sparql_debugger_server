@@ -49,7 +49,7 @@ public class ForwardingController {
                 .build();
     }
 
-    @PostMapping("/java")
+    @PostMapping("/javaaaa")
     public void forwardRequestJava(@RequestHeader Map<String, String> headerMap, @RequestBody String body, String uri) {
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()

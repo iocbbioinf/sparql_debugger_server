@@ -9,9 +9,9 @@ import java.util.Map;
 import java.util.Optional;
 
 public interface SparqlEndpointService {
-    Node<EndpointCall>  createServiceEndpointNode(SparqlQueryInfo sparqlQueryInfo, Node<EndpointCall> parentNode);
+    Node<EndpointCall>  createServiceEndpointNode(Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode);
     Node<EndpointCall> createQueryEndpointRoot(String endpoint, String query);
-    void callEndpoint(Map<String, String> headerMap, String query, Node<EndpointCall> endpointCallNode);
+    void callEndpoint(Long queryId, Map<String, String> headerMap, String query, Node<EndpointCall> endpointCallNode);
     Optional<Node<EndpointCall>> getEndpointNode(Long queryId, Long nodeId);
 
 }

@@ -1,9 +1,12 @@
 package cz.iocb.idsm.debugger.service;
 
 import cz.iocb.idsm.debugger.model.SparqlQueryInfo;
+import cz.iocb.idsm.debugger.model.Tree;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 @SpringBootTest
 public class SparqlQueryInfoServiceTest {
@@ -13,6 +16,11 @@ public class SparqlQueryInfoServiceTest {
     @Autowired
     public SparqlQueryInfoServiceTest(SparqlQueryService sparqlQueryService) {
         this.sparqlQueryService = sparqlQueryService;
+    }
+
+    @DynamicPropertySource
+    static void dynamicProperties(DynamicPropertyRegistry registry) {
+        registry.add("debugService", () -> "http://localhost:8080:");
     }
 
     @Test
@@ -55,7 +63,7 @@ public class SparqlQueryInfoServiceTest {
 
         String testEndpoint = "http://test.org";
 
-        SparqlQueryInfo root = sparqlQueryService.createQueryTree(testEndpoint, query, 1L);
+        Tree<SparqlQueryInfo> root = sparqlQueryService.createQueryTree(testEndpoint, query, 1L);
 
         System.out.println("MMO-tmp - root: " + root.toString());
 

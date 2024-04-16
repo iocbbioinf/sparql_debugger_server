@@ -29,11 +29,10 @@ public class Tree<T> {
             this.children = new ArrayList<>();
         }
 
-        public Node<T> addNode(T data, Node parent) {
-            Node<T> node = new Node<T>(data, parent);
-            if(parent != null) {
-                parent.children.add(node);
-            }
+        public Node<T> addNode(T data) {
+            Node<T> node = new Node<T>(data, this);
+            this.children.add(node);
+
             return node;
         }
 
