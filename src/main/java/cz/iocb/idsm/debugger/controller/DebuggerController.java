@@ -41,9 +41,9 @@ public class DebuggerController {
     }
 
     @PostMapping("/query")
-    public void debugQuery(@RequestHeader Map<String, String> headerMap, @RequestBody String body, @RequestParam(name = "endpoint") String endpoint) {
-        Node<EndpointCall> endpointRoot = endpointService.createQueryEndpointRoot(endpoint, body);
-        endpointService.callEndpoint(endpointRoot.getData().queryId, headerMap, body, endpointRoot);
+    public void debugQuery(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "query") String query, @RequestParam(name = "endpoint") String endpoint) {
+        Node<EndpointCall> endpointRoot = endpointService.createQueryEndpointRoot(endpoint, query);
+        endpointService.callEndpoint(endpointRoot.getData().queryId, headerMap, query, endpointRoot);
     }
 
 }

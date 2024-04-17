@@ -1,0 +1,7 @@
+sudo docker build \
+-f ./docker/Dockerfile \
+-t idsmdebugger:$1 .
+
+sudo docker image tag idsmdebugger:$1 registry.gitlab.com/marekmoosuochb/testrepo/idsmdebugger:$1
+
+sudo docker push registry.gitlab.com/marekmoosuochb/testrepo/idsmdebugger:$1

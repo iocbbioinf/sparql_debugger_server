@@ -12,7 +12,7 @@ public class HttpUtil {
     public static final String PARAM_QUERY_ID = "queryId";
     public static final String PARAM_PARENT_CALL_ID = "parentCallId";
     public static final String PARAM_SUBQUERY_ID = "subqueryId";
-    public static final String PARAM_ENDPOINT = "subqueryId";
+    public static final String PARAM_ENDPOINT = "endpoint";
 
     public static String prettyPrintRequest(HttpRequest request) {
         StringBuilder builder = new StringBuilder();

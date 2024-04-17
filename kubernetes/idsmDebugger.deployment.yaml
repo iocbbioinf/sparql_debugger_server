@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: idsm-debugger
+  namespace: sparql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: idsm-debugger
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: idsm-debugger
+    spec:
+      securityContext: # Pod security context
+        fsGroupChangePolicy: OnRootMismatch
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: idsm-debugger
+          image: registry.gitlab.com/marekmoosuochb/testrepo/idsmdebugger:1
+          securityContext: # Container security context
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 8080
+            - containerPort: 8000
+          env:
+            - name: "JAVA_OPTS"
+              value: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:8000 -XX:MaxRAMPercentage=90.0"
+            - name: "debugService"
+              value: "https://idsm-debugger.dyn.cloud.e-infra.cz/service"
+          resources:
+            requests:
+              cpu: "4"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+              memory: "4Gi"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: idsm-debugger
+  namespace: sparql
+spec:
+  ports:
+    - port: 80
+      targetPort: 8080
+  selector:
+    app: idsm-debugger

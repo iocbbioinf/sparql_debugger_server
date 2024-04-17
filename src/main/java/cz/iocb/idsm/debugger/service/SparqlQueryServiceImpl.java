@@ -14,6 +14,7 @@ import java.util.*;
 
 import static cz.iocb.idsm.debugger.util.HttpUtil.*;
 import static cz.iocb.idsm.debugger.util.IriUtil.unwrapIri;
+import static java.lang.String.format;
 
 @Service
 public class SparqlQueryServiceImpl implements SparqlQueryService {
@@ -23,7 +24,7 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
     public static final String SYS_VAR_PROXY_ENDPOINT = "proxyEndpoint";
     public static final String DEFAULT_PROXY_ENDPOINT = "localhost:8080";
 
-    @Value("${debugService}")
+    @Value("${debugService:localhost:8080/service}")
     private String debugServiceUriStr;
 
     @Override
@@ -132,7 +133,7 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                             ProxyQueryParams proxyQueryParams =
                                     new ProxyQueryParams(endpointCall.queryId, endpointCall.nodeId, subqueryId);
                             String iri = token.getText();
-                            newTokenStr = injectUrl(iri, proxyQueryParams);
+                            newTokenStr = injectUrl(unwrapIri(iri), proxyQueryParams);
                             injectionCounter ++;
                         }
                     }
@@ -177,11 +178,13 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
     private String injectUrl(String endpoint, ProxyQueryParams proxyQueryParams) {
 
         try {
-            return addQueryParam(new URI(debugServiceUriStr),
+            String injectedUrl = addQueryParam(new URI(debugServiceUriStr),
                     PARAM_ENDPOINT + "=" + endpoint,
                     PARAM_QUERY_ID + "=" + proxyQueryParams.getQueryId(),
                     PARAM_PARENT_CALL_ID + "=" + proxyQueryParams.getParentId(),
                     PARAM_SUBQUERY_ID + "=" + proxyQueryParams.getSubQueryId()).toString();
+
+            return format("<%s>", injectedUrl);
         } catch (URISyntaxException e) {
             throw new SparqlDebugException("Service IRI in query isn't valid.", e);
         }
