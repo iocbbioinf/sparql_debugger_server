@@ -190,21 +190,4 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
         }
 
     }
-
-    private URI addQueryParam(URI uri, String... queryParams) throws URISyntaxException {
-
-        String newQuery = uri.getQuery();
-
-        for(String queryParam: queryParams) {
-            if (newQuery == null) {
-                newQuery = queryParam;
-            } else {
-                newQuery += "&" + queryParam;
-            }
-        }
-
-        return new URI(uri.getScheme(), uri.getAuthority(),
-                uri.getPath(), newQuery, uri.getFragment());
-    }
-
 }

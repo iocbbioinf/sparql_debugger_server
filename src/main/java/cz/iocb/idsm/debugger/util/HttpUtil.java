@@ -1,5 +1,7 @@
 package cz.iocb.idsm.debugger.util;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
@@ -13,6 +15,15 @@ public class HttpUtil {
     public static final String PARAM_PARENT_CALL_ID = "parentCallId";
     public static final String PARAM_SUBQUERY_ID = "subqueryId";
     public static final String PARAM_ENDPOINT = "endpoint";
+
+    public static final String PARAM_QUERY = "query";
+    public static final String PARAM_DEFAULT_GRAPH_URI = "default-graph-uri";
+    public static final String PARAM_NAMED_GRAPH_URI = "named-graph-uri";
+
+    public static final String HEADER_CONTENT_TYPE = "Content-Type";
+
+
+
 
     public static String prettyPrintRequest(HttpRequest request) {
         StringBuilder builder = new StringBuilder();
@@ -72,4 +83,22 @@ public class HttpUtil {
             builder.append("  Body read complete.\n");
         }
     }
+
+    public static URI addQueryParam(URI uri, String... queryParams) throws URISyntaxException {
+
+        String newQuery = uri.getQuery();
+
+        for(String queryParam: queryParams) {
+            if (newQuery == null) {
+                newQuery = queryParam;
+            } else {
+                newQuery += "&" + queryParam;
+            }
+        }
+
+        return new URI(uri.getScheme(), uri.getAuthority(),
+                uri.getPath(), newQuery, uri.getFragment());
+    }
+
+
 }

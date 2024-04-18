@@ -1,9 +1,11 @@
 package cz.iocb.idsm.debugger;
 
+import cz.iocb.idsm.debugger.model.SparqlRequest;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.context.annotation.RequestScope;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.net.http.HttpClient;
@@ -22,6 +24,15 @@ public class SparqlDebuggerApplication {
 
 	@Bean
 	public HttpClient httpClient() {
-		return HttpClient.newHttpClient();
+		HttpClient result = HttpClient.newHttpClient();
+		result.followRedirects();
+
+		return result;
+	}
+
+	@Bean
+	@RequestScope
+	public SparqlRequest sparqlRequestBean() {
+		return new SparqlRequest();
 	}
 }

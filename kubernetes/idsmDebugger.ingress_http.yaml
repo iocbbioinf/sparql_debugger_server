@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: idsm-debugger-ingress
+  namespace: sparql
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    kubernetes.io/tls-acme: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+    - hosts:
+        - "idsm-debugger.dyn.cloud.e-infra.cz"
+      secretName: idsm-debugger-dyn-clout-e-infra-cz-tls
+  rules:
+    - host: "idsm-debugger.dyn.cloud.e-infra.cz"
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: idsm-debugger
+                port:
+                  number: 80

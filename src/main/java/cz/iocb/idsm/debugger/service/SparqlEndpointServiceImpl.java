@@ -2,27 +2,26 @@ package cz.iocb.idsm.debugger.service;
 
 import cz.iocb.idsm.debugger.model.*;
 import cz.iocb.idsm.debugger.util.HttpUtil;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import cz.iocb.idsm.debugger.model.Tree.Node;
+import org.springframework.web.util.UriComponentsBuilder;
 
 
 @Service
@@ -33,6 +32,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     @Autowired
     private HttpClient httpClient;
+
+    @Resource(name = "sparqlRequestBean")
+    SparqlRequest sparqlRequest;
 
     private Map<Long, Tree<EndpointCall>> queryExecutionMap = new HashMap<>();
     private AtomicLong queryCounter = new AtomicLong(0);
@@ -45,9 +47,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     }
 
     @Override
-    public Node<EndpointCall> createQueryEndpointRoot(String endpoint, String query) {
+    public Node<EndpointCall> createQueryEndpointRoot(URI endpoint) {
         Long queryId = queryCounter.addAndGet(1);
-        Tree<SparqlQueryInfo> queryTree = sparqlQueryService.createQueryTree(endpoint, query, queryId);
+        Tree<SparqlQueryInfo> queryTree = sparqlQueryService.createQueryTree(endpoint.toString(), sparqlRequest.getQuery(), queryId);
 
         EndpointCall endpointRoot = new EndpointCall(queryId, endpointCallCounter.getAndAdd(1), queryTree.getRoot());
         Tree<EndpointCall> endpointTree = new Tree<>(endpointRoot);
@@ -56,7 +58,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         return endpointTree.getRoot();
     }
 
-    public void callEndpoint(Long queryId, Map<String, String> headerMap, String query, Node<EndpointCall> endpointCallNode) {
+    public void callEndpoint(URI endpoint, Long queryId,  Node<EndpointCall> endpointCallNode) {
 
         EndpointCall endpointCall = endpointCallNode.getData();
         endpointCall.startTime = System.currentTimeMillis();
@@ -70,19 +72,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
                     .count() + 1;
         }
 
-        String proxyQuery = sparqlQueryService.injectOuterServices(query, endpointCallNode.getData());
+        String proxyQuery = sparqlQueryService.injectOuterServices(sparqlRequest.getQuery(), endpointCallNode.getData());
 
-        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                .uri(endpointCall.queryNode.getData().endpoint)
-                .POST(HttpRequest.BodyPublishers.ofString(proxyQuery));
-
-        headerMap.entrySet().stream()
-                .filter(entry -> !(entry.getKey().equalsIgnoreCase("host") ||
-                        entry.getKey().equalsIgnoreCase("content-length") ||
-                        entry.getKey().equalsIgnoreCase("connection")))
-                .forEach(entry -> requestBuilder.header(entry.getKey(), entry.getValue()));
-
-        HttpRequest request = requestBuilder.build();
+        HttpRequest request = createHttpRequest(endpoint, proxyQuery);
         saveRequest(request, queryId, endpointCall.nodeId);
 
         CompletableFuture<HttpResponse<String>> response = httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString());
@@ -107,6 +99,66 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         }
     }
 
+    private HttpRequest createHttpRequest(URI endpoint, String query) {
+
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
+        switch (sparqlRequest.getType()) {
+            case GET -> {
+                UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUri(endpoint)
+                        .queryParam(HttpUtil.PARAM_QUERY, query);
+                if (sparqlRequest.getDefaultGraphUri() != null) {
+                    uriBuilder.queryParam(HttpUtil.PARAM_DEFAULT_GRAPH_URI, sparqlRequest.getDefaultGraphUri());
+                }
+                if (sparqlRequest.getNamedGraphUri() != null) {
+                    uriBuilder.queryParam(HttpUtil.PARAM_NAMED_GRAPH_URI, sparqlRequest.getNamedGraphUri());
+                }
+
+                requestBuilder
+                        .uri(uriBuilder.build().toUri())
+                        .GET();
+            }
+            case POST_FORM -> {
+                Map<String, String> paramMap = new HashMap<>();
+                paramMap.put(HttpUtil.PARAM_QUERY, query);
+                if (sparqlRequest.getDefaultGraphUri() != null) {
+                    paramMap.put(HttpUtil.PARAM_DEFAULT_GRAPH_URI, sparqlRequest.getDefaultGraphUri());
+                }
+                if (sparqlRequest.getNamedGraphUri() != null) {
+                    paramMap.put(HttpUtil.PARAM_NAMED_GRAPH_URI, sparqlRequest.getNamedGraphUri());
+                }
+
+                String formData = buildFormData(paramMap);
+
+                requestBuilder
+                        .uri(endpoint)
+                        .POST(HttpRequest.BodyPublishers.ofString(formData));
+            }
+            case POST_PLAIN -> {
+                UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUri(endpoint);
+                if (sparqlRequest.getDefaultGraphUri() != null) {
+                    uriBuilder.queryParam(HttpUtil.PARAM_DEFAULT_GRAPH_URI, sparqlRequest.getDefaultGraphUri());
+                }
+                if (sparqlRequest.getNamedGraphUri() != null) {
+                    uriBuilder.queryParam(HttpUtil.PARAM_NAMED_GRAPH_URI, sparqlRequest.getNamedGraphUri());
+                }
+
+                requestBuilder
+                        .uri(uriBuilder.build().toUri())
+                        .POST(HttpRequest.BodyPublishers.ofString(query));
+            }
+        }
+
+        sparqlRequest.getHeaderMap().entrySet().stream()
+                .filter(entry -> !(entry.getKey().equalsIgnoreCase("host") ||
+                        entry.getKey().equalsIgnoreCase("content-length") ||
+                        entry.getKey().equalsIgnoreCase("connection")))
+                .forEach(entry -> requestBuilder.header(entry.getKey(), entry.getValue()));
+
+        HttpRequest request = requestBuilder.build();
+
+        return request;
+    }
+
     private void saveRequest(HttpRequest request, Long queryId, Long nodeId) {
         String fileName = composeFileName("request", queryId.toString(), nodeId.toString());
 
@@ -120,6 +172,13 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         } catch (IOException e) {
             throw new SparqlDebugException("Unable to write request to file.", e);
         }
+    }
+
+    private static String buildFormData(Map<String, String> data) {
+        return data.entrySet().stream()
+                .map(entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8) + "="
+                        + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8))
+                .collect(Collectors.joining("&"));
     }
 
     private void saveResponse(String responseBody, Long queryId, Long nodeId) {
