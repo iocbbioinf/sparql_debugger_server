@@ -9,7 +9,7 @@ public enum SparqlRequestType {
         this.contentType = contentType;
     }
 
-    public static SparqlRequestType valueOfLabel(String contentType) {
+    public static SparqlRequestType valueOfContentType(String contentType) {
         for (SparqlRequestType e : values()) {
             if (e.contentType.equals(contentType)) {
                 return e;

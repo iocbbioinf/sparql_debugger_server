@@ -4,6 +4,8 @@ import cz.iocb.idsm.debugger.grammar.SparqlLexerDebug;
 import cz.iocb.idsm.debugger.model.*;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.Token;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import cz.iocb.idsm.debugger.model.Tree.Node;
@@ -12,8 +14,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 
+import static cz.iocb.idsm.debugger.util.DebuggerUtil.prettyPrintTree;
 import static cz.iocb.idsm.debugger.util.HttpUtil.*;
-import static cz.iocb.idsm.debugger.util.IriUtil.unwrapIri;
+import static cz.iocb.idsm.debugger.util.DebuggerUtil.unwrapIri;
 import static java.lang.String.format;
 
 @Service
@@ -26,6 +29,8 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
 
     @Value("${debugService:localhost:8080/service}")
     private String debugServiceUriStr;
+
+    private static final Logger logger = LoggerFactory.getLogger(SparqlQueryServiceImpl.class);
 
     @Override
     public Tree<SparqlQueryInfo> createQueryTree(String endpoint, String query, Long queryId) throws SparqlDebugException {
@@ -89,6 +94,7 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
 
             nodeStack.peek().queryNode.getData().query = nodeStack.peek().sb.toString();
 
+            queryMap.put(queryId, resultTree);
 
             return resultTree;
 
@@ -166,9 +172,9 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
         if(queryTree == null) {
             return Optional.empty();
         } else {
+            logger.debug(format("queryTree: \n%s", prettyPrintTree(queryTree, (SparqlQueryInfo queryInfo) -> queryInfo.nodeId.toString())));
             return queryTree.getRoot().findNode(queryInfo -> queryInfo.nodeId == subqueryId);
         }
-
     }
 
     private Long getChildSubbqueryId(Node<SparqlQueryInfo> queryNode, Integer position) {
@@ -184,7 +190,11 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                     PARAM_PARENT_CALL_ID + "=" + proxyQueryParams.getParentId(),
                     PARAM_SUBQUERY_ID + "=" + proxyQueryParams.getSubQueryId()).toString();
 
-            return format("<%s>", injectedUrl);
+            String result = format("<%s>", injectedUrl);
+
+            logger.debug(format("injectUrl: endpoint=%s, injectedUrl=%s", endpoint, result));
+
+            return result;
         } catch (URISyntaxException e) {
             throw new SparqlDebugException("Service IRI in query isn't valid.", e);
         }

@@ -3,8 +3,8 @@ package cz.iocb.idsm.debugger.grammar;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.Token;
 
-import static cz.iocb.idsm.debugger.util.IriUtil.unwrapIri;
-import static cz.iocb.idsm.debugger.util.IriUtil.wrapIri;
+import static cz.iocb.idsm.debugger.util.DebuggerUtil.unwrapIri;
+import static cz.iocb.idsm.debugger.util.DebuggerUtil.wrapIri;
 
 public class LexerTest {
     public static void main(String[] args) throws Exception {

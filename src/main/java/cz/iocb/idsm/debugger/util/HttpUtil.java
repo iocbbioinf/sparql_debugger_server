@@ -20,7 +20,7 @@ public class HttpUtil {
     public static final String PARAM_DEFAULT_GRAPH_URI = "default-graph-uri";
     public static final String PARAM_NAMED_GRAPH_URI = "named-graph-uri";
 
-    public static final String HEADER_CONTENT_TYPE = "Content-Type";
+    public static final String HEADER_CONTENT_TYPE = "content-type";
 
 
 

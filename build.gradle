@@ -18,7 +18,9 @@ repositories {
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
 	implementation 'org.antlr:antlr4-runtime:4.5.3'
+	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
