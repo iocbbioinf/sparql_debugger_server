@@ -162,11 +162,11 @@ public class DebuggerController {
 
     private SparqlRequestType getRequestType(String contentType) {
         if(contentType == null) {
-            throw new SparqlDebugException("Missing request header: Content-Type");
+            throw new SparqlDebugException("Missing request header: content-type");
         } else {
             SparqlRequestType sparqlRequestType = SparqlRequestType.valueOfContentType(contentType);
             if(sparqlRequestType == null) {
-                throw new SparqlDebugException("Content-Type request header has wrong value");
+                throw new SparqlDebugException("content-type request header has wrong value");
             }
 
             return sparqlRequestType;

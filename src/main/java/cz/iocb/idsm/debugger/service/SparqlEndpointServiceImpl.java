@@ -134,13 +134,13 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
         switch (sparqlRequest.getType()) {
             case GET -> {
-                UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUri(endpoint)
-                        .queryParam(HttpUtil.PARAM_QUERY, query);
+                UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(endpoint.toString())
+                        .queryParam(HttpUtil.PARAM_QUERY, URLEncoder.encode(query, StandardCharsets.UTF_8));
                 if (sparqlRequest.getDefaultGraphUri() != null) {
-                    uriBuilder.queryParam(HttpUtil.PARAM_DEFAULT_GRAPH_URI, sparqlRequest.getDefaultGraphUri());
+                    uriBuilder.queryParam(HttpUtil.PARAM_DEFAULT_GRAPH_URI, URLEncoder.encode(sparqlRequest.getDefaultGraphUri(), StandardCharsets.UTF_8));
                 }
                 if (sparqlRequest.getNamedGraphUri() != null) {
-                    uriBuilder.queryParam(HttpUtil.PARAM_NAMED_GRAPH_URI, sparqlRequest.getNamedGraphUri());
+                    uriBuilder.queryParam(HttpUtil.PARAM_NAMED_GRAPH_URI, URLEncoder.encode(sparqlRequest.getNamedGraphUri(), StandardCharsets.UTF_8));
                 }
 
                 requestBuilder
@@ -164,7 +164,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
                         .POST(HttpRequest.BodyPublishers.ofString(formData));
             }
             case POST_PLAIN -> {
-                UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUri(endpoint);
+                UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(endpoint.toString());
                 if (sparqlRequest.getDefaultGraphUri() != null) {
                     uriBuilder.queryParam(HttpUtil.PARAM_DEFAULT_GRAPH_URI, sparqlRequest.getDefaultGraphUri());
                 }

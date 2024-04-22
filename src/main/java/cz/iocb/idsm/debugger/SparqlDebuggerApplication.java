@@ -1,5 +1,6 @@
 package cz.iocb.idsm.debugger;
 
+import cz.iocb.idsm.debugger.controller.RequestLoggingFilter;
 import cz.iocb.idsm.debugger.model.SparqlRequest;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -28,6 +29,11 @@ public class SparqlDebuggerApplication {
 		result.followRedirects();
 
 		return result;
+	}
+
+	@Bean
+	public RequestLoggingFilter requestLoggingFilter() {
+		return new RequestLoggingFilter();
 	}
 
 	@Bean

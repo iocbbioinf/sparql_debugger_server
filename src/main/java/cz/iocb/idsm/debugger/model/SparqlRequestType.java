@@ -11,7 +11,7 @@ public enum SparqlRequestType {
 
     public static SparqlRequestType valueOfContentType(String contentType) {
         for (SparqlRequestType e : values()) {
-            if (e.contentType.equals(contentType)) {
+            if (contentType.contains(e.contentType)) {
                 return e;
             }
         }
