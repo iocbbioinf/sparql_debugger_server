@@ -13,4 +13,7 @@ public interface SparqlQueryService {
 
     Optional<Node<SparqlQueryInfo>> getQueryInfoNode(Long queryId, Long subqueryId);
 
+    String getEndpoint(Long endpointId);
+
+
 }

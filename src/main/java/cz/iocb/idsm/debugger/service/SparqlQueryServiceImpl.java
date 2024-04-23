@@ -9,10 +9,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import cz.iocb.idsm.debugger.model.Tree.Node;
+import org.springframework.web.util.UrlPathHelper;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static cz.iocb.idsm.debugger.util.DebuggerUtil.prettyPrintTree;
 import static cz.iocb.idsm.debugger.util.HttpUtil.*;
@@ -29,6 +34,9 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
 
     @Value("${debugService:localhost:8080/service}")
     private String debugServiceUriStr;
+
+    private AtomicLong endpointCounter = new AtomicLong(0);
+    private Map<Long, String> endpointMap = Collections.synchronizedMap(new HashMap<>());
 
     private static final Logger logger = LoggerFactory.getLogger(SparqlQueryServiceImpl.class);
 
@@ -177,27 +185,48 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
         }
     }
 
+    @Override
+    public String getEndpoint(Long endpointId) {
+        String result = endpointMap.get(endpointId);
+        if(result == null) {
+            throw new SparqlDebugException(format("Non registered endpoint. EndpointId=%d", endpointId));
+        }
+
+        return result;
+    }
+
     private Long getChildSubbqueryId(Node<SparqlQueryInfo> queryNode, Integer position) {
         return queryNode.getChildren().get(position).getData().nodeId;
     }
 
     private String injectUrl(String endpoint, ProxyQueryParams proxyQueryParams) {
 
-        try {
-            String injectedUrl = addQueryParam(new URI(debugServiceUriStr),
-                    PARAM_ENDPOINT + "=" + endpoint,
-                    PARAM_QUERY_ID + "=" + proxyQueryParams.getQueryId(),
-                    PARAM_PARENT_CALL_ID + "=" + proxyQueryParams.getParentId(),
-                    PARAM_SUBQUERY_ID + "=" + proxyQueryParams.getSubQueryId()).toString();
-
-            String result = format("<%s>", injectedUrl);
-
-            logger.debug(format("injectUrl: endpoint=%s, injectedUrl=%s", endpoint, result));
-
-            return result;
-        } catch (URISyntaxException e) {
-            throw new SparqlDebugException("Service IRI in query isn't valid.", e);
+        Long endpointId;
+        synchronized (endpointMap) {
+            Optional<Long> endpId = endpointMap.entrySet().stream()
+                    .filter(entry -> entry.getValue().equals(endpoint))
+                    .map(entry -> entry.getKey()).findAny();
+            if(endpId.isPresent()) {
+                endpointId = endpId.get();
+            } else {
+                endpointId = endpointCounter.addAndGet(1);
+                endpointMap.put(endpointId, endpoint);
+            }
         }
 
+        StringBuilder sb = new StringBuilder();
+        sb.append(debugServiceUriStr).append("/")
+                .append(PATH_QUERY_ID).append("/").append(proxyQueryParams.getQueryId()).append("/")
+                .append(PATH_PARENT_CALL_ID).append("/").append(proxyQueryParams.getParentId()).append("/")
+                .append(PATH_SUBQUERY_ID).append("/").append(proxyQueryParams.getSubQueryId()).append("/")
+                .append(PATH_ENDPOINT).append("/").append(endpointId);
+
+        String injectedUrl = sb.toString();
+
+        String result = format("<%s>", injectedUrl);
+
+        logger.debug(format("injectUrl: endpoint=%s, injectedUrl=%s", endpoint, result));
+
+        return result;
     }
 }

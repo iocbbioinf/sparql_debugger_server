@@ -95,18 +95,24 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         HttpRequest request = createHttpRequest(endpoint, proxyQuery);
         saveRequest(request, queryId, endpointCall.nodeId);
 
-        CompletableFuture<HttpResponse<String>> response = httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+        try {
 
-        response.thenApply(HttpResponse::body)
-                .thenAccept(respBody -> {
-                    saveResponse(respBody, queryId, endpointCall.nodeId);
-                })
-                .exceptionally(e -> {
-                    System.err.println("Error during request: " + e.getMessage());
-                    return null;
-                });
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-        logger.debug(format("callEndpoint - end. queryId=%s", queryId));
+            String body = response.body();
+            saveResponse(body, queryId, endpointCall.nodeId);
+
+            logger.debug(format("callEndpoint - end. queryId=%s", queryId));
+        } catch (IOException e) {
+            // Handle IOException
+            System.err.println("I/O Error during request: " + e.getMessage());
+        } catch (InterruptedException e) {
+            // Handle InterruptedException
+            System.err.println("Request interrupted: " + e.getMessage());
+            // Restore interrupted state
+            Thread.currentThread().interrupt();
+        }
+
 
     }
 
@@ -135,12 +141,12 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         switch (sparqlRequest.getType()) {
             case GET -> {
                 UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(endpoint.toString())
-                        .queryParam(HttpUtil.PARAM_QUERY, URLEncoder.encode(query, StandardCharsets.UTF_8));
+                        .queryParam(HttpUtil.PARAM_QUERY, query);
                 if (sparqlRequest.getDefaultGraphUri() != null) {
-                    uriBuilder.queryParam(HttpUtil.PARAM_DEFAULT_GRAPH_URI, URLEncoder.encode(sparqlRequest.getDefaultGraphUri(), StandardCharsets.UTF_8));
+                    uriBuilder.queryParam(HttpUtil.PARAM_DEFAULT_GRAPH_URI, sparqlRequest.getDefaultGraphUri());
                 }
                 if (sparqlRequest.getNamedGraphUri() != null) {
-                    uriBuilder.queryParam(HttpUtil.PARAM_NAMED_GRAPH_URI, URLEncoder.encode(sparqlRequest.getNamedGraphUri(), StandardCharsets.UTF_8));
+                    uriBuilder.queryParam(HttpUtil.PARAM_NAMED_GRAPH_URI, sparqlRequest.getNamedGraphUri());
                 }
 
                 requestBuilder

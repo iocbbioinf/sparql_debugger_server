@@ -14,5 +14,4 @@ public interface SparqlEndpointService {
     Node<EndpointCall> createQueryEndpointRoot(URI endpoint);
     void callEndpoint(URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode);
     Optional<Node<EndpointCall>> getEndpointNode(Long queryId, Long nodeId);
-
 }

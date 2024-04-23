@@ -11,10 +11,10 @@ import java.util.concurrent.Flow;
 
 public class HttpUtil {
 
-    public static final String PARAM_QUERY_ID = "queryId";
-    public static final String PARAM_PARENT_CALL_ID = "parentCallId";
-    public static final String PARAM_SUBQUERY_ID = "subqueryId";
-    public static final String PARAM_ENDPOINT = "endpoint";
+    public static final String PATH_QUERY_ID = "query";
+    public static final String PATH_PARENT_CALL_ID = "parent";
+    public static final String PATH_SUBQUERY_ID = "subquery";
+    public static final String PATH_ENDPOINT = "endpoint";
 
     public static final String PARAM_QUERY = "query";
     public static final String PARAM_DEFAULT_GRAPH_URI = "default-graph-uri";
