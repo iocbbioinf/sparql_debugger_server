@@ -51,7 +51,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     public Node<EndpointCall> createServiceEndpointNode(Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode) {
         logger.debug("createServiceEndpointNode - start");
 
-        EndpointCall endpointCall = new EndpointCall(parentNode.getData().queryId, endpointCallCounter.getAndAdd(1), queryNode);
+        EndpointCall endpointCall = new EndpointCall(parentNode.getData().getQueryId(), endpointCallCounter.getAndAdd(1), queryNode);
 
         logger.debug("createServiceEndpointNode - end");
         return parentNode.addNode(endpointCall);
@@ -74,46 +74,59 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         return endpointTree.getRoot();
     }
 
-    public void callEndpoint(URI endpoint, Long queryId,  Node<EndpointCall> endpointCallNode) {
+    @Override
+    public Optional<Tree<EndpointCall>> getQueryTree(Long queryId) {
+        Tree<EndpointCall> queryTree = queryExecutionMap.get(queryId);
+
+        if(queryTree == null) {
+            return Optional.empty();
+        } else {
+            return Optional.of(queryTree);
+        }
+    }
+
+    public HttpResponse<String> callEndpoint(URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
 
         logger.debug(format("callEndpoint - start. queryId=%s , endpoint=%s", queryId, endpoint));
 
         EndpointCall endpointCall = endpointCallNode.getData();
-        endpointCall.startTime = System.currentTimeMillis();
-        endpointCall.state = EndpointNodeState.IN_PROGRESS;
+        endpointCall.setStartTime(System.currentTimeMillis());
+        endpointCall.setState(EndpointNodeState.IN_PROGRESS);
 
         if(endpointCallNode.getParent() == null) {
-            endpointCall.seqId = 1L;
+            endpointCall.setSeqId(1L);
         } else {
-            endpointCall.seqId = endpointCallNode.getParent().getChildren().stream()
-                    .filter(en -> en.getData().queryNode.getData().nodeId == endpointCall.queryNode.getData().nodeId && endpointCall.state != EndpointNodeState.NONE)
-                    .count() + 1;
+            endpointCall.setSeqId(endpointCallNode.getParent().getChildren().stream()
+                    .filter(en -> en.getData().getQueryNode().getData().nodeId == endpointCall.getQueryNode().getData().nodeId && endpointCall.getState() != EndpointNodeState.NONE)
+                    .count() + 1);
         }
 
         String proxyQuery = sparqlQueryService.injectOuterServices(sparqlRequest.getQuery(), endpointCallNode.getData());
 
         HttpRequest request = createHttpRequest(endpoint, proxyQuery);
-        saveRequest(request, queryId, endpointCall.nodeId);
+        saveRequest(request, queryId, endpointCall.getNodeId());
 
+        HttpResponse<String> response = null;
         try {
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             String body = response.body();
-            saveResponse(body, queryId, endpointCall.nodeId);
+            saveResponse(body, queryId, endpointCall.getNodeId());
 
-            logger.debug(format("callEndpoint - end. queryId=%s", queryId));
+            endpointCall.setState(EndpointNodeState.SUCCESS);
+            endpointCall.setHttpState(response.statusCode());
+
+            logger.debug(format("callEndpoint - end. queryId=%d, nodeId=%d", queryId, endpointCall.getNodeId()));
         } catch (IOException e) {
-            // Handle IOException
-            System.err.println("I/O Error during request: " + e.getMessage());
+            logger.error(format("I/O Error during request. queryId=%d, nodeId=%d", endpointCall.getNodeId()));
+            throw new SparqlDebugException("I/O Error during request.", e);
         } catch (InterruptedException e) {
-            // Handle InterruptedException
-            System.err.println("Request interrupted: " + e.getMessage());
-            // Restore interrupted state
+            logger.error("Request interrupted.");
             Thread.currentThread().interrupt();
         }
 
-
+        return response;
     }
 
     @Override
@@ -127,7 +140,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         if(endpointCallTree == null) {
             result =  Optional.empty();
         } else {
-            result =  endpointCallTree.getRoot().findNode(endpointCall -> endpointCall.nodeId == nodeId);
+            result =  endpointCallTree.getRoot().findNode(endpointCall -> endpointCall.getNodeId() == nodeId);
         }
 
         logger.debug(format("getEndpointNode - start. queryId=%s , nodeId=%s, result=%s", queryId, nodeId, result));

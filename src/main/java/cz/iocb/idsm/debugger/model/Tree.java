@@ -1,5 +1,7 @@
 package cz.iocb.idsm.debugger.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -58,6 +60,7 @@ public class Tree<T> {
             return data;
         }
 
+        @JsonIgnore
         public Node<T> getParent() {
             return parent;
         }

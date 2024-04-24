@@ -143,9 +143,9 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                     }
                     case SparqlLexerDebug.IRIREF -> {
                         if (inService) {
-                            Long subqueryId = getChildSubbqueryId(endpointCall.queryNode, injectionCounter);
+                            Long subqueryId = getChildSubbqueryId(endpointCall.getQueryNode(), injectionCounter);
                             ProxyQueryParams proxyQueryParams =
-                                    new ProxyQueryParams(endpointCall.queryId, endpointCall.nodeId, subqueryId);
+                                    new ProxyQueryParams(endpointCall.getQueryId(), endpointCall.getNodeId(), subqueryId);
                             String iri = token.getText();
                             newTokenStr = injectUrl(unwrapIri(iri), proxyQueryParams);
                             injectionCounter ++;

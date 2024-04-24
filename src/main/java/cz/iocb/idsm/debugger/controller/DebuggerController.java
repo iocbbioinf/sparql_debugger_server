@@ -9,12 +9,19 @@ import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Optional;
 
 import static cz.iocb.idsm.debugger.util.HttpUtil.*;
 import static java.lang.String.format;
@@ -34,7 +41,7 @@ public class DebuggerController {
     private static final Logger logger = LoggerFactory.getLogger(DebuggerController.class);
 
     @PostMapping("/service/query/{queryId}/parent/{parentEndpointNodeId}/subquery/{subqueryId}/endpoint/{endpointId}")
-    public void debugServicePost(@RequestHeader Map<String, String> headerMap,
+    public ResponseEntity<String> debugServicePost(@RequestHeader Map<String, String> headerMap,
                              @PathVariable Long endpointId,
                              @PathVariable Long queryId,
                              @PathVariable Long parentEndpointNodeId,
@@ -57,19 +64,20 @@ public class DebuggerController {
         sparqlRequest.setDefaultGraphUri(defaultGraphUri);
         sparqlRequest.setHeaderMap(headerMap);
 
-        executeService(endpointId, queryId, parentEndpointNodeId, subqueryId);
+        HttpResponse<String> response = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId);
 
+        return new ResponseEntity<>(response.body(), httpHeaders2MultiValueMap(response.headers()), response.statusCode());
     }
 
     @GetMapping("/service/query/{queryId}/parent/{parentEndpointNodeId}/subquery/{subqueryId}/endpoint/{endpointId}")
-    public void debugServiceGet(@RequestHeader Map<String, String> headerMap,
-                                @PathVariable Long endpointId,
-                                @PathVariable Long queryId,
-                                @PathVariable Long parentEndpointNodeId,
-                                @PathVariable Long subqueryId,
-                                @RequestParam(name = PARAM_QUERY, required = false) String query,
-                                @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
-                                @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri
+    public ResponseEntity<String> debugServiceGet(@RequestHeader Map<String, String> headerMap,
+                                                  @PathVariable Long endpointId,
+                                                  @PathVariable Long queryId,
+                                                  @PathVariable Long parentEndpointNodeId,
+                                                  @PathVariable Long subqueryId,
+                                                  @RequestParam(name = PARAM_QUERY, required = false) String query,
+                                                  @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
+                                                  @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri
     ) {
 
         sparqlRequest.setType(SparqlRequestType.GET);
@@ -78,12 +86,14 @@ public class DebuggerController {
         sparqlRequest.setDefaultGraphUri(defaultGraphUri);
         sparqlRequest.setHeaderMap(headerMap);
 
-        executeService(endpointId, queryId, parentEndpointNodeId, subqueryId);
+        HttpResponse<String> response = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId);
+
+        return new ResponseEntity<>(response.body(), httpHeaders2MultiValueMap(response.headers()), response.statusCode());
     }
 
 
     @GetMapping("query")
-    public void debugQueryPost(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
+    public HttpResponse<String> debugQueryPost(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
                                @RequestParam(name = PARAM_QUERY) String query,
                                @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
                                @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri
@@ -95,11 +105,11 @@ public class DebuggerController {
         sparqlRequest.setDefaultGraphUri(defaultGraphUri);
         sparqlRequest.setHeaderMap(headerMap);
 
-        executeQuery(endpoint);
+        return executeQuery(endpoint);
     }
 
     @PostMapping("/query")
-    public void debugQueryGet(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
+    public HttpResponse<String> debugQueryGet(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
                               @RequestParam(name = PARAM_QUERY, required = false) String query,
                               @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
                               @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
@@ -120,10 +130,22 @@ public class DebuggerController {
         sparqlRequest.setDefaultGraphUri(defaultGraphUri);
         sparqlRequest.setHeaderMap(headerMap);
 
-        executeQuery(endpoint);
+        return executeQuery(endpoint);
     }
 
-    private void executeQuery(String endpoint) {
+    @GetMapping("/query/{queryId}")
+    public Tree<EndpointCall> getQueryInfo(@PathVariable Long queryId) {
+        if(endpointService.getQueryTree(queryId).isEmpty()) {
+            logger.error(format("Query doesn't exist. queryId=%d", queryId));
+            throw new SparqlDebugException(format("Query doesn't exist. queryId=%d", queryId));
+        }
+
+        return endpointService.getQueryTree(queryId).get();
+
+    }
+
+
+    private HttpResponse<String> executeQuery(String endpoint) {
         URI endpointUri;
         try {
             endpointUri = new URI(endpoint);
@@ -133,10 +155,11 @@ public class DebuggerController {
 
         Node<EndpointCall> endpointRoot = endpointService.createQueryEndpointRoot(endpointUri);
 
-        endpointService.callEndpoint(endpointUri, endpointRoot.getData().queryId, endpointRoot);
+        return endpointService.callEndpoint(endpointUri, endpointRoot.getData().getQueryId(), endpointRoot);
+
     }
 
-    private void executeService(Long endpointId, Long queryId, Long parentEndpointNodeId, Long subqueryId) {
+    private HttpResponse<String> executeService(Long endpointId, Long queryId, Long parentEndpointNodeId, Long subqueryId) {
         logger.debug(format("executeService - start: queryId=%s, parentEndpointNodeId=%s, subqueryId=%s, endpointId=%d",
                 queryId, parentEndpointNodeId, subqueryId, endpointId));
 
@@ -157,8 +180,7 @@ public class DebuggerController {
             throw new SparqlDebugException(format("Wrong IRI format: %s", endpoint), e);
         }
 
-        endpointService.callEndpoint(endpointUri, queryId, endpointCall);
-
+        return endpointService.callEndpoint(endpointUri, queryId, endpointCall);
     }
 
     private SparqlRequestType getRequestType(String contentType) {

@@ -1,5 +1,8 @@
 package cz.iocb.idsm.debugger.util;
 
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
@@ -98,6 +101,15 @@ public class HttpUtil {
 
         return new URI(uri.getScheme(), uri.getAuthority(),
                 uri.getPath(), newQuery, uri.getFragment());
+    }
+
+    public static MultiValueMap<String, String> httpHeaders2MultiValueMap(HttpHeaders headers) {
+        MultiValueMap<String, String> resultMap = new LinkedMultiValueMap<>();
+        headers.map().entrySet().stream()
+                .forEach(entry -> entry.getValue().stream()
+                        .forEach(str -> resultMap.add(entry.getKey(), str)));
+
+        return resultMap;
     }
 
 
