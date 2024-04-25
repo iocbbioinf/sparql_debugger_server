@@ -20,6 +20,8 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -85,7 +87,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         }
     }
 
-    public HttpResponse<String> callEndpoint(URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
+    public HttpRequest prepareEndpointToCall(URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
 
         logger.debug(format("callEndpoint - start. queryId=%s , endpoint=%s", queryId, endpoint));
 
@@ -106,7 +108,15 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         HttpRequest request = createHttpRequest(endpoint, proxyQuery);
         saveRequest(request, queryId, endpointCall.getNodeId());
 
+        return request;
+    }
+
+    @Override
+    public HttpResponse<String> callEndpointSync(HttpRequest request, URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
+
         HttpResponse<String> response = null;
+        EndpointCall endpointCall = endpointCallNode.getData();
+
         try {
 
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -117,9 +127,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             endpointCall.setState(EndpointNodeState.SUCCESS);
             endpointCall.setHttpState(response.statusCode());
 
-            logger.debug(format("callEndpoint - end. queryId=%d, nodeId=%d", queryId, endpointCall.getNodeId()));
+            logger.debug("callEndpoint - end. queryId=%d, nodeId=%d", queryId, endpointCall.getNodeId());
         } catch (IOException e) {
-            logger.error(format("I/O Error during request. queryId=%d, nodeId=%d", endpointCall.getNodeId()));
+            logger.error("I/O Error during request. queryId=%d, nodeId=%d", endpointCall.getNodeId());
             throw new SparqlDebugException("I/O Error during request.", e);
         } catch (InterruptedException e) {
             logger.error("Request interrupted.");
@@ -127,6 +137,26 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         }
 
         return response;
+    }
+
+    @Override
+    public void callEndpointAsync(HttpRequest request, URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
+        EndpointCall endpointCall = endpointCallNode.getData();
+
+        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(resp -> {
+                    saveResponse(resp.body(), queryId, endpointCall.getNodeId());
+
+                    endpointCall.setState(EndpointNodeState.SUCCESS);
+                    endpointCall.setHttpState(resp.statusCode());
+
+                })
+                .exceptionally(e -> {
+                    logger.error("Error during request. queryId=%d, nodeId=%d error:%s",  queryId, endpointCall.getNodeId(), e.getMessage());
+
+                    endpointCall.setState(EndpointNodeState.ERROR);
+                    return null;
+                });
     }
 
     @Override
