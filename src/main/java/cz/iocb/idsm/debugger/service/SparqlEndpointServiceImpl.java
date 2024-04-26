@@ -45,7 +45,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     private static final Logger logger = LoggerFactory.getLogger(SparqlEndpointServiceImpl.class);
 
-    private Map<Long, Tree<EndpointCall>> queryExecutionMap = new HashMap<>();
+    private Map<Long, Tree<EndpointCall>> queryExecutionMap = new ConcurrentHashMap<>();
     private AtomicLong queryCounter = new AtomicLong(0);
     private AtomicLong endpointCallCounter = new AtomicLong(0);
 

@@ -42,6 +42,7 @@ public class Tree<T> {
             this.data = data;
             this.parent = parent;
             this.children = new ArrayList<>();
+            this.tree = tree;
         }
 
         public Node<T> addNode(T data) {
@@ -100,5 +101,9 @@ public class Tree<T> {
 
     public SseEmitter getEmitter() {
         return emitter;
+    }
+
+    public void closeEmmiter() {
+
     }
 }

@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
@@ -20,6 +21,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static cz.iocb.idsm.debugger.util.HttpUtil.*;
 import static java.lang.String.format;
@@ -32,6 +35,10 @@ public class DebuggerController {
 
     @Autowired
     private SparqlEndpointService endpointService;
+
+    @Autowired
+    private SparqlQueryService sparqlQueryService;
+
 
     @Resource(name = "sparqlRequestBean")
     SparqlRequest sparqlRequest;
@@ -105,8 +112,41 @@ public class DebuggerController {
 
         Long queryId = executeQuery(endpoint);
 
-        return endpointService.getQueryTree(queryId).get().getEmitter();
+        SseEmitter result = endpointService.getQueryTree(queryId).get().getEmitter();
+
+
+        Tree<EndpointCall> testTree = new Tree<>(new EndpointCall(1L, 2L, null));
+        testTree.getRoot().addNode(new EndpointCall(3L, 4L, null));
+
+        return testTree.getEmitter();
     }
+
+    @GetMapping("testSse")
+    public SseEmitter testSse() {
+
+        Tree<EndpointCall> testTree = new Tree<>(new EndpointCall(1L, 2L, null));
+        testTree.getRoot().addNode(new EndpointCall(3L, 4L, null));
+
+        /*
+        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE); // Long duration
+
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+                try {
+                    emitter.send(endpontCall);
+                } catch (IOException e) {
+                    emitter.completeWithError(e);
+                }
+        });
+
+        executor.shutdown();
+*/
+
+        return testTree.getEmitter();
+    }
+
+
 
 
     @PostMapping("/query")
