@@ -19,9 +19,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -53,7 +51,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     public Node<EndpointCall> createServiceEndpointNode(Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode) {
         logger.debug("createServiceEndpointNode - start");
 
-        EndpointCall endpointCall = new EndpointCall(parentNode.getData().getQueryId(), endpointCallCounter.getAndAdd(1), queryNode);
+        EndpointCall endpointCall = new EndpointCall(parentNode.getData().getQueryId(), endpointCallCounter.getAndAdd(1), queryNode, parentNode.getData().getNodeId());
 
         logger.debug("createServiceEndpointNode - end");
         return parentNode.addNode(endpointCall);
@@ -63,15 +61,27 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     public Node<EndpointCall> createQueryEndpointRoot(URI endpoint) {
         Long queryId = queryCounter.addAndGet(1);
 
-        logger.debug(format("createQueryEndpointRoot - start. queryId=%s , endpoint=%s", queryId, endpoint));
+        logger.debug(format("createQueryEndpointRoot - start. queryId={} , endpoint={}", queryId, endpoint));
 
         Tree<SparqlQueryInfo> queryTree = sparqlQueryService.createQueryTree(endpoint.toString(), sparqlRequest.getQuery(), queryId);
 
-        EndpointCall endpointRoot = new EndpointCall(queryId, endpointCallCounter.getAndAdd(1), queryTree.getRoot());
-        Tree<EndpointCall> endpointTree = new Tree<>(endpointRoot);
+        EndpointCall endpointRoot = new EndpointCall(queryId, endpointCallCounter.getAndAdd(1), queryTree.getRoot(), null);
+        Tree<EndpointCall> endpointTree = new Tree<>(endpointRoot,
+                node -> {
+                    ExecutorService executor = Executors.newSingleThreadExecutor();
+                    executor.execute(() -> {
+                        try {
+                            node.getTree().getEmitter().send(node.getData());
+                        } catch (IOException e) {
+                            node.getTree().getEmitter().completeWithError(e);
+                        }
+                    });
+                    executor.shutdown();
+                });
+
         queryExecutionMap.put(queryId, endpointTree);
 
-        logger.debug(format("createQueryEndpointRoot - end. queryId=%s", queryId));
+        logger.debug("createQueryEndpointRoot - end. queryId={}", queryId);
 
         return endpointTree.getRoot();
     }
@@ -89,7 +99,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     public HttpRequest prepareEndpointToCall(URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
 
-        logger.debug(format("callEndpoint - start. queryId=%s , endpoint=%s", queryId, endpoint));
+        logger.debug("callEndpoint - start. queryId={} , endpoint={}", queryId, endpoint);
 
         EndpointCall endpointCall = endpointCallNode.getData();
         endpointCall.setStartTime(System.currentTimeMillis());
@@ -118,7 +128,6 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         EndpointCall endpointCall = endpointCallNode.getData();
 
         try {
-
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             String body = response.body();
@@ -127,12 +136,21 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             endpointCall.setState(EndpointNodeState.SUCCESS);
             endpointCall.setHttpState(response.statusCode());
 
-            logger.debug("callEndpoint - end. queryId=%d, nodeId=%d", queryId, endpointCall.getNodeId());
+            endpointCallNode.updateNode();
+            logger.debug("callEndpoint - end. queryId={}, nodeId={}", queryId, endpointCall.getNodeId());
         } catch (IOException e) {
-            logger.error("I/O Error during request. queryId=%d, nodeId=%d", endpointCall.getNodeId());
+            logger.error("I/O Error during request. queryId={}, nodeId={}", endpointCall.getNodeId());
+
+            endpointCall.setState(EndpointNodeState.ERROR);
+            endpointCallNode.updateNode();
+
             throw new SparqlDebugException("I/O Error during request.", e);
         } catch (InterruptedException e) {
             logger.error("Request interrupted.");
+
+            endpointCall.setState(EndpointNodeState.ERROR);
+            endpointCallNode.updateNode();
+
             Thread.currentThread().interrupt();
         }
 
@@ -150,11 +168,13 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
                     endpointCall.setState(EndpointNodeState.SUCCESS);
                     endpointCall.setHttpState(resp.statusCode());
 
+                    endpointCallNode.updateNode();
                 })
                 .exceptionally(e -> {
                     logger.error("Error during request. queryId=%d, nodeId=%d error:%s",  queryId, endpointCall.getNodeId(), e.getMessage());
 
                     endpointCall.setState(EndpointNodeState.ERROR);
+                    endpointCallNode.updateNode();
                     return null;
                 });
     }
@@ -162,7 +182,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     @Override
     public Optional<Node<EndpointCall>> getEndpointNode(Long queryId, Long nodeId) {
 
-        logger.debug(format("getEndpointNode - start. queryId=%s , nodeId=%s", queryId, nodeId));
+        logger.debug("getEndpointNode - start. queryId={} , nodeId={}", queryId, nodeId);
 
         Tree<EndpointCall> endpointCallTree = queryExecutionMap.get(queryId);
 
@@ -173,7 +193,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             result =  endpointCallTree.getRoot().findNode(endpointCall -> endpointCall.getNodeId() == nodeId);
         }
 
-        logger.debug(format("getEndpointNode - start. queryId=%s , nodeId=%s, result=%s", queryId, nodeId, result));
+        logger.debug("getEndpointNode - start. queryId={} , nodeId={}, result={}", queryId, nodeId, result);
 
         return result;
     }
@@ -243,8 +263,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
         try {
 
-            logger.debug(format("saveRequest - start. queryId=%s , nodeId=%s, request=%s", queryId, nodeId,
-                    HttpUtil.prettyPrintRequest(request)));
+            logger.debug("saveRequest - start. queryId={} , nodeId={}, request={}", queryId, nodeId,
+                    HttpUtil.prettyPrintRequest(request));
 
             File tempFile = File.createTempFile(fileName, ".tmp");
             tempFile.deleteOnExit();

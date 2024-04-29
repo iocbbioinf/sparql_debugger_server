@@ -7,6 +7,7 @@ import java.util.Objects;
 public class EndpointCall {
     private Long queryId;
     private Long nodeId;
+    private Long parentNodeId;
     private Long seqId;
     private Tree.Node<SparqlQueryInfo> queryNode;
     private Long startTime;
@@ -14,10 +15,11 @@ public class EndpointCall {
     private Integer httpState;
     private EndpointNodeState state = EndpointNodeState.NONE;
 
-    public EndpointCall(Long queryId, Long nodeId, Tree.Node<SparqlQueryInfo> queryNode) {
+    public EndpointCall(Long queryId, Long nodeId, Tree.Node<SparqlQueryInfo> queryNode, Long parentNodeId) {
         this.queryId = queryId;
         this.nodeId = nodeId;
         this.queryNode = queryNode;
+        this.parentNodeId = parentNodeId;
     }
 
     public Long getQueryId() {
@@ -77,16 +79,20 @@ public class EndpointCall {
         this.state = state;
     }
 
+    public Long getParentNodeId() {
+        return parentNodeId;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         EndpointCall that = (EndpointCall) o;
-        return Objects.equals(queryId, that.queryId) && Objects.equals(nodeId, that.nodeId) && Objects.equals(seqId, that.seqId) && Objects.equals(queryNode, that.queryNode) && Objects.equals(startTime, that.startTime) && Objects.equals(httpState, that.httpState) && state == that.state;
+        return Objects.equals(queryId, that.queryId) && Objects.equals(nodeId, that.nodeId) && Objects.equals(parentNodeId, that.parentNodeId) && Objects.equals(seqId, that.seqId) && Objects.equals(queryNode, that.queryNode) && Objects.equals(startTime, that.startTime) && Objects.equals(httpState, that.httpState) && state == that.state;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(queryId, nodeId, seqId, queryNode, startTime, httpState, state);
+        return Objects.hash(queryId, nodeId, parentNodeId, seqId, queryNode, startTime, httpState, state);
     }
 }

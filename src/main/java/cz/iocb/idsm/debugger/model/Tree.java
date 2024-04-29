@@ -9,23 +9,35 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 public class Tree<T> {
     private Node<T> root;
     private SseEmitter emitter;
+    private Consumer<Node<T>> addNodeHandler;
 
-    public Tree(T rootData) {
+    public Tree(T rootData, Consumer<Node<T>> addNodeHandler) {
         root = new Node<T>(rootData, null, this);
         root.data = rootData;
         root.children = new ArrayList<Node<T>>();
 
         emitter = new SseEmitter(Long.MAX_VALUE);
 
+        this.addNodeHandler = addNodeHandler;
+
         // TODO
         emitter.onCompletion(() -> {
         });
         emitter.onTimeout(() -> {});
+
+        if(addNodeHandler != null) {
+            addNodeHandler.accept(root);
+        }
+    }
+
+    public Tree(T rootData) {
+        this(rootData, null);
     }
 
     public Node<T> getRoot() {
@@ -49,8 +61,19 @@ public class Tree<T> {
             Node<T> node = new Node<T>(data, this, this.tree);
             this.children.add(node);
 
-            sseSend();
+            if(tree.addNodeHandler != null) {
+                tree.addNodeHandler.accept(node);
+            }
+
             return node;
+        }
+
+        public Node<T> updateNode() {
+            if(tree.addNodeHandler != null) {
+                tree.addNodeHandler.accept(this);
+            }
+
+            return this;
         }
 
         public Optional<Node<T>> findNode(Predicate<T> predicate) {
@@ -84,24 +107,16 @@ public class Tree<T> {
             return children;
         }
 
-        public void sseSend() {
-            ExecutorService executor = Executors.newSingleThreadExecutor();
-            executor.execute(() -> {
-                try {
-                    tree.emitter.send(this);
-                } catch (IOException e) {
-                    tree.emitter.completeWithError(e);
-                }
-            });
-            executor.shutdown();
+        public Tree<T> getTree() {
+            return tree;
         }
-
     }
-
 
     public SseEmitter getEmitter() {
         return emitter;
     }
+
+
 
     public void closeEmmiter() {
 

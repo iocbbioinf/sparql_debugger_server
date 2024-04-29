@@ -180,7 +180,7 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
         if(queryTree == null) {
             return Optional.empty();
         } else {
-            logger.debug(format("queryTree: \n%s", prettyPrintTree(queryTree, (SparqlQueryInfo queryInfo) -> queryInfo.nodeId.toString())));
+            logger.debug("queryTree: \n{}", prettyPrintTree(queryTree, (SparqlQueryInfo queryInfo) -> queryInfo.nodeId.toString()));
             return queryTree.getRoot().findNode(queryInfo -> queryInfo.nodeId == subqueryId);
         }
     }
@@ -225,7 +225,7 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
 
         String result = format("<%s>", injectedUrl);
 
-        logger.debug(format("injectUrl: endpoint=%s, injectedUrl=%s", endpoint, result));
+        logger.debug("injectUrl: endpoint={}, injectedUrl={}", endpoint, result);
 
         return result;
     }

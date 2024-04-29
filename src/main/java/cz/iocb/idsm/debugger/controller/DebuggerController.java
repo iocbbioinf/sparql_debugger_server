@@ -114,18 +114,14 @@ public class DebuggerController {
 
         SseEmitter result = endpointService.getQueryTree(queryId).get().getEmitter();
 
-
-        Tree<EndpointCall> testTree = new Tree<>(new EndpointCall(1L, 2L, null));
-        testTree.getRoot().addNode(new EndpointCall(3L, 4L, null));
-
-        return testTree.getEmitter();
+        return result;
     }
 
     @GetMapping("testSse")
     public SseEmitter testSse() {
 
-        Tree<EndpointCall> testTree = new Tree<>(new EndpointCall(1L, 2L, null));
-        testTree.getRoot().addNode(new EndpointCall(3L, 4L, null));
+        Tree<EndpointCall> testTree = new Tree<>(new EndpointCall(1L, 2L, null, null));
+        testTree.getRoot().addNode(new EndpointCall(3L, 4L, null, testTree.getRoot().getData().getNodeId()));
 
         /*
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE); // Long duration
@@ -157,7 +153,7 @@ public class DebuggerController {
                               @RequestBody(required = false) String body
     ) {
 
-        logger.debug(format("debugQueryGet - start: headerMap: %s", Arrays.toString(headerMap.keySet().toArray())));
+        logger.debug("debugQueryGet - start: headerMap: {}", Arrays.toString(headerMap.keySet().toArray()));
 
         SparqlRequestType sparqlRequestType = getRequestType(headerMap.get(HEADER_CONTENT_TYPE));
 
@@ -207,8 +203,8 @@ public class DebuggerController {
 
 
     private HttpResponse<String> executeService(Long endpointId, Long queryId, Long parentEndpointNodeId, Long subqueryId) {
-        logger.debug(format("executeService - start: queryId=%s, parentEndpointNodeId=%s, subqueryId=%s, endpointId=%d",
-                queryId, parentEndpointNodeId, subqueryId, endpointId));
+        logger.debug("executeService - start: queryId={}, parentEndpointNodeId={}, subqueryId={}, endpointId={}",
+                queryId, parentEndpointNodeId, subqueryId, endpointId);
 
         String endpoint = queryService.getEndpoint(endpointId);
 
