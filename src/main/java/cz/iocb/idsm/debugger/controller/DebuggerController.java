@@ -15,9 +15,11 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -104,17 +106,55 @@ public class DebuggerController {
                                @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri
                                ) {
 
-        sparqlRequest.setType(SparqlRequestType.GET);
+        sparqlRequest.setType(SparqlRequestType.POST_FORM);
         sparqlRequest.setQuery(query);
         sparqlRequest.setNamedGraphUri(namedGraphUri);
         sparqlRequest.setDefaultGraphUri(defaultGraphUri);
-        sparqlRequest.setHeaderMap(headerMap);
+
+        Map<String, String> newHeaderMap = new HashMap<>();
+        newHeaderMap.put("content-type", "application/x-www-form-urlencoded");
+
+        sparqlRequest.setHeaderMap(newHeaderMap);
+//        sparqlRequest.setHeaderMap(headerMap);
 
         Long queryId = executeQuery(endpoint);
 
         SseEmitter result = endpointService.getQueryTree(queryId).get().getEmitter();
 
         return result;
+    }
+
+    @PostMapping("/query")
+    public SseEmitter debugQueryPost(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
+                              @RequestParam(name = PARAM_QUERY, required = false) String query,
+                              @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
+                              @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
+                              @RequestBody(required = false) String body
+    ) {
+
+        logger.debug("debugQueryGet - start: headerMap: {}", Arrays.toString(headerMap.keySet().toArray()));
+
+        SparqlRequestType sparqlRequestType = getRequestType(headerMap.get(HEADER_CONTENT_TYPE));
+
+        sparqlRequest.setType(getRequestType(headerMap.get(HEADER_CONTENT_TYPE)));
+        if(sparqlRequestType.equals(SparqlRequestType.POST_FORM)) {
+            sparqlRequest.setQuery(query);
+        } else {
+            sparqlRequest.setQuery(body);
+        }
+        sparqlRequest.setNamedGraphUri(namedGraphUri);
+        sparqlRequest.setDefaultGraphUri(defaultGraphUri);
+
+        Map<String, String> newHeaderMap = new HashMap<>();
+        newHeaderMap.put("content-type", "application/x-www-form-urlencoded");
+
+        sparqlRequest.setHeaderMap(newHeaderMap);
+//        sparqlRequest.setHeaderMap(headerMap);
+
+
+        Long queryId = executeQuery(endpoint);
+
+        return endpointService.getQueryTree(queryId).get().getEmitter();
     }
 
     @GetMapping("testSse")
@@ -142,36 +182,6 @@ public class DebuggerController {
         return testTree.getEmitter();
     }
 
-
-
-
-    @PostMapping("/query")
-    public SseEmitter debugQueryPost(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
-                              @RequestParam(name = PARAM_QUERY, required = false) String query,
-                              @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
-                              @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
-                              @RequestBody(required = false) String body
-    ) {
-
-        logger.debug("debugQueryGet - start: headerMap: {}", Arrays.toString(headerMap.keySet().toArray()));
-
-        SparqlRequestType sparqlRequestType = getRequestType(headerMap.get(HEADER_CONTENT_TYPE));
-
-        sparqlRequest.setType(getRequestType(headerMap.get(HEADER_CONTENT_TYPE)));
-        if(sparqlRequestType.equals(SparqlRequestType.POST_FORM)) {
-            sparqlRequest.setQuery(query);
-        } else {
-            sparqlRequest.setQuery(body);
-        }
-        sparqlRequest.setNamedGraphUri(namedGraphUri);
-        sparqlRequest.setDefaultGraphUri(defaultGraphUri);
-        sparqlRequest.setHeaderMap(headerMap);
-
-
-        Long queryId = executeQuery(endpoint);
-
-        return endpointService.getQueryTree(queryId).get().getEmitter();
-    }
 
     @GetMapping("/query/{queryId}")
     public Tree<EndpointCall> getQueryInfo(@PathVariable Long queryId) {

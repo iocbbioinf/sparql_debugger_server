@@ -247,11 +247,13 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             }
         }
 
-        sparqlRequest.getHeaderMap().entrySet().stream()
-                .filter(entry -> !(entry.getKey().equalsIgnoreCase(HttpHeaders.HOST) ||
-                        entry.getKey().equalsIgnoreCase(HttpHeaders.CONTENT_LENGTH) ||
-                        entry.getKey().equalsIgnoreCase(HttpHeaders.CONNECTION)))
-                .forEach(entry -> requestBuilder.header(entry.getKey(), entry.getValue()));
+        if(sparqlRequest.getHeaderMap() != null) {
+            sparqlRequest.getHeaderMap().entrySet().stream()
+                    .filter(entry -> !(entry.getKey().equalsIgnoreCase(HttpHeaders.HOST) ||
+                            entry.getKey().equalsIgnoreCase(HttpHeaders.CONTENT_LENGTH) ||
+                            entry.getKey().equalsIgnoreCase(HttpHeaders.CONNECTION)))
+                    .forEach(entry -> requestBuilder.header(entry.getKey(), entry.getValue()));
+        }
 
         HttpRequest request = requestBuilder.build();
 
