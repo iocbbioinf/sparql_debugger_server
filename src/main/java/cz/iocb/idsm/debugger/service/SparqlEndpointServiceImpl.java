@@ -6,6 +6,7 @@ import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 
@@ -22,10 +23,13 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import cz.iocb.idsm.debugger.model.Tree.Node;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.REQUEST;
+import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.RESPONSE;
 import static java.lang.String.format;
 
 
@@ -48,10 +52,11 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     private AtomicLong endpointCallCounter = new AtomicLong(0);
 
     @Override
-    public Node<EndpointCall> createServiceEndpointNode(Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode) {
+    public Node<EndpointCall> createServiceEndpointNode(String endpoint, Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode) {
         logger.debug("createServiceEndpointNode - start");
 
-        EndpointCall endpointCall = new EndpointCall(parentNode.getData().getQueryId(), endpointCallCounter.getAndAdd(1), queryNode, parentNode.getData().getNodeId());
+        EndpointCall endpointCall = new EndpointCall(parentNode.getData().getQueryId(), endpointCallCounter.getAndAdd(1),
+                queryNode, parentNode.getData().getNodeId(), endpoint);
 
         logger.debug("createServiceEndpointNode - end");
         return parentNode.addNode(endpointCall);
@@ -65,7 +70,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
         Tree<SparqlQueryInfo> queryTree = sparqlQueryService.createQueryTree(endpoint.toString(), sparqlRequest.getQuery(), queryId);
 
-        EndpointCall endpointRoot = new EndpointCall(queryId, endpointCallCounter.getAndAdd(1), queryTree.getRoot(), null);
+        EndpointCall endpointRoot = new EndpointCall(queryId, endpointCallCounter.getAndAdd(1), queryTree.getRoot(), null, endpoint.toString());
         Tree<EndpointCall> endpointTree = new Tree<>(endpointRoot,
                 node -> {
                     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -109,7 +114,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             endpointCall.setSeqId(1L);
         } else {
             endpointCall.setSeqId(endpointCallNode.getParent().getChildren().stream()
-                    .filter(en -> en.getData().getQueryNode().getData().nodeId == endpointCall.getQueryNode().getData().nodeId && endpointCall.getState() != EndpointNodeState.NONE)
+                    .filter(en -> en.getData().getQueryNode().getData().nodeId.equals(endpointCall.getQueryNode().getData().nodeId) && endpointCall.getState() != EndpointNodeState.NONE)
                     .count() + 1);
         }
 
@@ -190,11 +195,17 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         if(endpointCallTree == null) {
             result =  Optional.empty();
         } else {
-            result =  endpointCallTree.getRoot().findNode(endpointCall -> endpointCall.getNodeId() == nodeId);
+            result =  endpointCallTree.getRoot().findNode(endpointCall -> endpointCall.getNodeId().equals(nodeId));
         }
 
         logger.debug("getEndpointNode - start. queryId={} , nodeId={}, result={}", queryId, nodeId, result);
 
+        return result;
+    }
+
+    @Override
+    public FileSystemResource getFile(FileId fileId) {
+        FileSystemResource result = new FileSystemResource(fileId.getPath());
         return result;
     }
 
@@ -261,14 +272,12 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     }
 
     private void saveRequest(HttpRequest request, Long queryId, Long nodeId) {
-        String fileName = composeFileName("request", queryId.toString(), nodeId.toString());
-
+        FileId fileId = new FileId(REQUEST, queryId, nodeId);
         try {
-
             logger.debug("saveRequest - start. queryId={} , nodeId={}, request={}", queryId, nodeId,
                     HttpUtil.prettyPrintRequest(request));
 
-            File tempFile = File.createTempFile(fileName, ".tmp");
+            File tempFile = new File(fileId.getPath());
             tempFile.deleteOnExit();
 
             FileWriter fileWriter = new FileWriter(tempFile);
@@ -287,10 +296,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     }
 
     private void saveResponse(String responseBody, Long queryId, Long nodeId) {
-        String fileName = composeFileName("response", queryId.toString(), nodeId.toString());
-
+        FileId fileId = new FileId(RESPONSE, queryId, nodeId);
         try {
-            File tempFile = File.createTempFile(fileName, ".tmp");
+            File tempFile = new File(fileId.getPath());
             tempFile.deleteOnExit();
 
             FileWriter fileWriter = new FileWriter(tempFile);
@@ -302,7 +310,4 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     }
 
-    private String composeFileName(String... parts) {
-        return Arrays.stream(parts).collect(Collectors.joining("_"))+"_";
-    }
 }

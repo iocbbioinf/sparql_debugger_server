@@ -2,6 +2,7 @@ package cz.iocb.idsm.debugger.controller;
 
 import cz.iocb.idsm.debugger.model.*;
 import cz.iocb.idsm.debugger.service.SparqlEndpointService;
+import cz.iocb.idsm.debugger.service.SparqlEndpointServiceImpl;
 import cz.iocb.idsm.debugger.service.SparqlQueryService;
 import cz.iocb.idsm.debugger.model.Tree.Node;
 import jakarta.annotation.Resource;
@@ -26,6 +27,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.REQUEST;
+import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.RESPONSE;
 import static cz.iocb.idsm.debugger.util.HttpUtil.*;
 import static java.lang.String.format;
 
@@ -160,8 +163,8 @@ public class DebuggerController {
     @GetMapping("testSse")
     public SseEmitter testSse() {
 
-        Tree<EndpointCall> testTree = new Tree<>(new EndpointCall(1L, 2L, null, null));
-        testTree.getRoot().addNode(new EndpointCall(3L, 4L, null, testTree.getRoot().getData().getNodeId()));
+        Tree<EndpointCall> testTree = new Tree<>(new EndpointCall(1L, 2L, null, null, null));
+        testTree.getRoot().addNode(new EndpointCall(3L, 4L, null, testTree.getRoot().getData().getNodeId(), null));
 
         /*
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE); // Long duration
@@ -194,6 +197,18 @@ public class DebuggerController {
 
     }
 
+    @GetMapping("/query/{queryId}/call/{callId}/request")
+    public org.springframework.core.io.Resource getRequest(@PathVariable String queryId, @PathVariable String callId) {
+        FileId fileId = new FileId(REQUEST, Long.valueOf(queryId), Long.valueOf(callId));
+        return endpointService.getFile(fileId);
+    }
+
+    @GetMapping("/query/{queryId}/call/{callId}/response")
+    public org.springframework.core.io.Resource getResponse(@PathVariable String queryId, @PathVariable String callId) {
+        FileId fileId = new FileId(RESPONSE, Long.valueOf(queryId), Long.valueOf(callId));
+        return endpointService.getFile(fileId);
+    }
+
     private Long executeQuery(String endpoint) {
         URI endpointUri;
         try {
@@ -224,7 +239,7 @@ public class DebuggerController {
         Node<EndpointCall> parentEndpointNode = endpointService.getEndpointNode(queryId, parentEndpointNodeId)
                 .orElseThrow(() -> new SparqlDebugException(format("queryId param value is not valid. querId: %d", queryId)));
 
-        Node<EndpointCall> endpointCall = endpointService.createServiceEndpointNode(subqueryNode, parentEndpointNode);
+        Node<EndpointCall> endpointCall = endpointService.createServiceEndpointNode(endpoint, subqueryNode, parentEndpointNode);
 
         URI endpointUri;
         try {

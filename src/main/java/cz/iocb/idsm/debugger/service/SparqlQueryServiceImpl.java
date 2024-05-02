@@ -181,7 +181,7 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
             return Optional.empty();
         } else {
             logger.debug("queryTree: \n{}", prettyPrintTree(queryTree, (SparqlQueryInfo queryInfo) -> queryInfo.nodeId.toString()));
-            return queryTree.getRoot().findNode(queryInfo -> queryInfo.nodeId == subqueryId);
+            return queryTree.getRoot().findNode(queryInfo -> queryInfo.nodeId.equals(subqueryId));
         }
     }
 
