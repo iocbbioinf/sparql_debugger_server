@@ -135,13 +135,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         try {
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            String body = response.body();
-            saveResponse(body, queryId, endpointCall.getNodeId());
+            processResponse(response, endpointCall, endpointCallNode, queryId);
 
-            endpointCall.setState(EndpointNodeState.SUCCESS);
-            endpointCall.setHttpState(response.statusCode());
-
-            endpointCallNode.updateNode();
             logger.debug("callEndpoint - end. queryId={}, nodeId={}", queryId, endpointCall.getNodeId());
         } catch (IOException e) {
             logger.error("I/O Error during request. queryId={}, nodeId={}", endpointCall.getNodeId());
@@ -162,18 +157,27 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         return response;
     }
 
+    private void processResponse(HttpResponse<String> response, EndpointCall endpointCall, Node<EndpointCall> endpointCallNode, Long queryId) {
+        String body = response.body();
+        saveResponse(body, queryId, endpointCall.getNodeId());
+
+        if(response.statusCode() >= 200 && response.statusCode() < 300) {
+            endpointCall.setState(EndpointNodeState.SUCCESS);
+        } else {
+            endpointCall.setState(EndpointNodeState.ERROR);
+        }
+
+        endpointCall.setHttpState(response.statusCode());
+        endpointCallNode.updateNode();
+    }
+
     @Override
     public void callEndpointAsync(HttpRequest request, URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
         EndpointCall endpointCall = endpointCallNode.getData();
 
         httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(resp -> {
-                    saveResponse(resp.body(), queryId, endpointCall.getNodeId());
-
-                    endpointCall.setState(EndpointNodeState.SUCCESS);
-                    endpointCall.setHttpState(resp.statusCode());
-
-                    endpointCallNode.updateNode();
+                    processResponse(resp, endpointCall, endpointCallNode, queryId);
                 })
                 .exceptionally(e -> {
                     logger.error("Error during request. queryId=%d, nodeId=%d error:%s",  queryId, endpointCall.getNodeId(), e.getMessage());

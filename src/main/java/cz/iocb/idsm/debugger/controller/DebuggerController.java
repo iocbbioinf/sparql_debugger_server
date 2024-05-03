@@ -116,6 +116,7 @@ public class DebuggerController {
 
         Map<String, String> newHeaderMap = new HashMap<>();
         newHeaderMap.put("content-type", "application/x-www-form-urlencoded");
+        newHeaderMap.put("accept", "application/sparql-results+xml, text/rdf n3, text/rdf ttl, text/rdf turtle, text/turtle, application/turtle, application/x-turtle, application/rdf xml, application/xml, application/sparql-results+json, text/csv, text/tab-separated-values, text/turtle, application/n-triples, application/ld+json");
 
         sparqlRequest.setHeaderMap(newHeaderMap);
 //        sparqlRequest.setHeaderMap(headerMap);
@@ -158,31 +159,6 @@ public class DebuggerController {
         Long queryId = executeQuery(endpoint);
 
         return endpointService.getQueryTree(queryId).get().getEmitter();
-    }
-
-    @GetMapping("testSse")
-    public SseEmitter testSse() {
-
-        Tree<EndpointCall> testTree = new Tree<>(new EndpointCall(1L, 2L, null, null, null));
-        testTree.getRoot().addNode(new EndpointCall(3L, 4L, null, testTree.getRoot().getData().getNodeId(), null));
-
-        /*
-        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE); // Long duration
-
-
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.execute(() -> {
-                try {
-                    emitter.send(endpontCall);
-                } catch (IOException e) {
-                    emitter.completeWithError(e);
-                }
-        });
-
-        executor.shutdown();
-*/
-
-        return testTree.getEmitter();
     }
 
 
