@@ -23,7 +23,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import cz.iocb.idsm.debugger.model.Tree.Node;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -113,6 +112,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         if(endpointCallNode.getParent() == null) {
             endpointCall.setSeqId(1L);
         } else {
+
             endpointCall.setSeqId(endpointCallNode.getParent().getChildren().stream()
                     .filter(en -> en.getData().getQueryNode().getData().nodeId.equals(endpointCall.getQueryNode().getData().nodeId) && endpointCall.getState() != EndpointNodeState.NONE)
                     .count() + 1);
@@ -167,7 +167,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             endpointCall.setState(EndpointNodeState.ERROR);
         }
 
-        endpointCall.setHttpState(response.statusCode());
+        endpointCall.setHttpStatus(response.statusCode());
         endpointCallNode.updateNode();
     }
 

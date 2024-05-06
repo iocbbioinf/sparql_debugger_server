@@ -14,7 +14,7 @@ public class EndpointCall {
     private String endpoint;
     private Long resultsCount;
 
-    private Integer httpState;
+    private Integer httpStatus;
     private EndpointNodeState state = EndpointNodeState.NONE;
 
     public EndpointCall(Long queryId, Long nodeId, Tree.Node<SparqlQueryInfo> queryNode, Long parentNodeId, String endpoint) {
@@ -66,12 +66,12 @@ public class EndpointCall {
         this.startTime = startTime;
     }
 
-    public Integer getHttpState() {
-        return httpState;
+    public Integer getHttpStatus() {
+        return httpStatus;
     }
 
-    public void setHttpState(Integer httpState) {
-        this.httpState = httpState;
+    public void setHttpStatus(Integer httpStatus) {
+        this.httpStatus = httpStatus;
     }
 
     public EndpointNodeState getState() {
@@ -99,11 +99,11 @@ public class EndpointCall {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         EndpointCall that = (EndpointCall) o;
-        return Objects.equals(queryId, that.queryId) && Objects.equals(nodeId, that.nodeId) && Objects.equals(parentNodeId, that.parentNodeId) && Objects.equals(seqId, that.seqId) && Objects.equals(queryNode, that.queryNode) && Objects.equals(startTime, that.startTime) && Objects.equals(endpoint, that.endpoint) && Objects.equals(resultsCount, that.resultsCount) && Objects.equals(httpState, that.httpState) && state == that.state;
+        return Objects.equals(queryId, that.queryId) && Objects.equals(nodeId, that.nodeId) && Objects.equals(parentNodeId, that.parentNodeId) && Objects.equals(seqId, that.seqId) && Objects.equals(queryNode, that.queryNode) && Objects.equals(startTime, that.startTime) && Objects.equals(endpoint, that.endpoint) && Objects.equals(resultsCount, that.resultsCount) && Objects.equals(httpStatus, that.httpStatus) && state == that.state;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(queryId, nodeId, parentNodeId, seqId, queryNode, startTime, endpoint, resultsCount, httpState, state);
+        return Objects.hash(queryId, nodeId, parentNodeId, seqId, queryNode, startTime, endpoint, resultsCount, httpStatus, state);
     }
 }
