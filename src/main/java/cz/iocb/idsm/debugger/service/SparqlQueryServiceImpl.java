@@ -9,13 +9,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import cz.iocb.idsm.debugger.model.Tree.Node;
-import org.springframework.web.util.UrlPathHelper;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -27,7 +23,7 @@ import static java.lang.String.format;
 @Service
 public class SparqlQueryServiceImpl implements SparqlQueryService {
 
-    private Map<Long, Tree<SparqlQueryInfo>> queryMap = new HashMap<>();
+    private final Map<Long, Tree<SparqlQueryInfo>> queryMap = new HashMap<>();
 
     public static final String SYS_VAR_PROXY_ENDPOINT = "proxyEndpoint";
     public static final String DEFAULT_PROXY_ENDPOINT = "localhost:8080";
@@ -35,8 +31,8 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
     @Value("${debugService:localhost:8080/service}")
     private String debugServiceUriStr;
 
-    private AtomicLong endpointCounter = new AtomicLong(0);
-    private Map<Long, String> endpointMap = Collections.synchronizedMap(new HashMap<>());
+    private final AtomicLong endpointCounter = new AtomicLong(0);
+    private final Map<Long, String> endpointMap = Collections.synchronizedMap(new HashMap<>());
 
     private static final Logger logger = LoggerFactory.getLogger(SparqlQueryServiceImpl.class);
 
@@ -162,9 +158,7 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                         }
                     }
                     case SparqlLexerDebug.OPEN_CURLY_BRACE -> {
-                        if (inService) {
-                            inServiceBodyLevel++;
-                        }
+                        inServiceBodyLevel++;
                     }
                 }
             }

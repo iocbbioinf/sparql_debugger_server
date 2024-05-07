@@ -3,12 +3,9 @@ package cz.iocb.idsm.debugger.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -83,15 +80,15 @@ public class Tree<T> {
         public Optional<Node<T>> findNode(Node<T> node, Predicate<T> predicate) {
             if(predicate.test(node.data)) {
                 return Optional.of(node);
-            } else {
-                for(Node child : node.children) {
-                    Optional<Node<T>> result = findNode(child, predicate);
-                    if(result.isPresent()) {
-                        return result;
-                    }
-                }
-                return Optional.empty();
             }
+
+            for(Node child : node.children) {
+                Optional<Node<T>> result = findNode(child, predicate);
+                if(result.isPresent()) {
+                    return result;
+                }
+            }
+            return Optional.empty();
         }
 
         public T getData() {

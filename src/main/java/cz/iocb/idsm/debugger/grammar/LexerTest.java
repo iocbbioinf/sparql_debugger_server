@@ -113,9 +113,7 @@ public class LexerTest {
                         }
                     }
                     case SparqlLexerDebug.OPEN_CURLY_BRACE -> {
-                        if(inService) {
-                            inServiceBodyLevel ++;
-                        }
+                       inServiceBodyLevel ++;
                     }
                 }
             }

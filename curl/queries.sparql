@@ -1,3 +1,5 @@
+
+
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX chembl: <http://rdf.ebi.ac.uk/terms/chembl#>
 PREFIX uniprot: <http://purl.uniprot.org/core/>

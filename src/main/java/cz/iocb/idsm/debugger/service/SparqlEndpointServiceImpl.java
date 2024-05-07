@@ -65,7 +65,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     public Node<EndpointCall> createQueryEndpointRoot(URI endpoint) {
         Long queryId = queryCounter.addAndGet(1);
 
-        logger.debug(format("createQueryEndpointRoot - start. queryId={} , endpoint={}", queryId, endpoint));
+        logger.debug("createQueryEndpointRoot - start. queryId={} , endpoint={}", queryId, endpoint);
 
         Tree<SparqlQueryInfo> queryTree = sparqlQueryService.createQueryTree(endpoint.toString(), sparqlRequest.getQuery(), queryId);
 
@@ -139,7 +139,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
             logger.debug("callEndpoint - end. queryId={}, nodeId={}", queryId, endpointCall.getNodeId());
         } catch (IOException e) {
-            logger.error("I/O Error during request. queryId={}, nodeId={}", endpointCall.getNodeId());
+            logger.error("I/O Error during request. queryId={}, nodeId={}", queryId, endpointCall.getNodeId());
 
             endpointCall.setState(EndpointNodeState.ERROR);
             endpointCallNode.updateNode();
@@ -168,6 +168,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         }
 
         endpointCall.setHttpStatus(response.statusCode());
+        endpointCall.setDuration(System.currentTimeMillis() - endpointCall.getStartTime());
+
         endpointCallNode.updateNode();
     }
 
@@ -180,7 +182,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
                     processResponse(resp, endpointCall, endpointCallNode, queryId);
                 })
                 .exceptionally(e -> {
-                    logger.error("Error during request. queryId=%d, nodeId=%d error:%s",  queryId, endpointCall.getNodeId(), e.getMessage());
+                    logger.error("Error during request. queryId={}, nodeId={} error={}",  queryId, endpointCall.getNodeId(), e.getMessage());
 
                     endpointCall.setState(EndpointNodeState.ERROR);
                     endpointCallNode.updateNode();

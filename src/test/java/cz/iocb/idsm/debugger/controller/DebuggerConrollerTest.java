@@ -2,7 +2,6 @@ package cz.iocb.idsm.debugger.controller;
 
 import cz.iocb.idsm.debugger.service.SparqlEndpointServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;

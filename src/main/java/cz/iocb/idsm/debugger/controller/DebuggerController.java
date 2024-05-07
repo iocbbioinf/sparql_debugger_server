@@ -2,7 +2,6 @@ package cz.iocb.idsm.debugger.controller;
 
 import cz.iocb.idsm.debugger.model.*;
 import cz.iocb.idsm.debugger.service.SparqlEndpointService;
-import cz.iocb.idsm.debugger.service.SparqlEndpointServiceImpl;
 import cz.iocb.idsm.debugger.service.SparqlQueryService;
 import cz.iocb.idsm.debugger.model.Tree.Node;
 import jakarta.annotation.Resource;
@@ -13,19 +12,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.REQUEST;
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.RESPONSE;

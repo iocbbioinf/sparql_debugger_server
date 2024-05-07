@@ -1,14 +1,12 @@
 package cz.iocb.idsm.debugger.model;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
 
 public class SparqlQueryInfo {
-    public URI endpoint;
+    public final URI endpoint;
     public String query;
-    public Long queryContextId;
-    public Long nodeId;
+    public final Long queryContextId;
+    public final Long nodeId;
 
     public SparqlQueryInfo(URI endpoint, String query, Long queryContextId, Long nodeId) {
         this.endpoint = endpoint;

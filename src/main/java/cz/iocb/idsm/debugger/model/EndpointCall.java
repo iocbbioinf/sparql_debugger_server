@@ -11,6 +11,7 @@ public class EndpointCall {
     private Long seqId;
     private Tree.Node<SparqlQueryInfo> queryNode;
     private Long startTime;
+    private Long duration;
     private String endpoint;
     private Long resultsCount;
 
@@ -58,6 +59,7 @@ public class EndpointCall {
         this.queryNode = queryNode;
     }
 
+    @JsonIgnore
     public Long getStartTime() {
         return startTime;
     }
@@ -80,6 +82,14 @@ public class EndpointCall {
 
     public void setState(EndpointNodeState state) {
         this.state = state;
+    }
+
+    public Long getDuration() {
+        return duration;
+    }
+
+    public void setDuration(Long duration) {
+        this.duration = duration;
     }
 
     public Long getParentNodeId() {

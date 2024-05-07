@@ -4,9 +4,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class FileId {
-    private FILE_TYPE fileType;
-    private Long queryId;
-    private Long callId;
+    private final FILE_TYPE fileType;
+    private final Long queryId;
+    private final Long callId;
 
     public static final String TMP_DIR = "/tmp";
 
