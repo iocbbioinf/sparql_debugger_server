@@ -28,19 +28,20 @@ public class SparqlQueryInfoServiceTest {
 
         String query = """
             PREFIX dc: <http://purl.org/dc/elements/1.1/>
-            PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+            PREFIX : <http://xmlns.com/foaf/0.1/>
             PREFIX org: <http://www.w3.org/ns/org#>
             PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            BASE <http://test.base.org/>
             
             SELECT ?title ?publicationYear ?authorName ?affiliationName
             WHERE {
               # Querying the publications endpoint for publications about "Artificial Intelligence" after 2010
-              SERVICE <https://sparql.nextprot.org/> {
-                SERVICE <https://sparql.nextprot.org/>
+              SERVICE <service1> {
+                SERVICE dc:service2
                 {   
                     ?publication dc:title ?title .
                 }
-                SERVICE <https://sparql.nextprot.org/>
+                SERVICE <service3>
                 {
                     ?publication dc:date ?publicationYear .                
                 }                
@@ -50,8 +51,8 @@ public class SparqlQueryInfoServiceTest {
               }
             
               # Querying the authors endpoint for the authors' names and affiliations
-              SERVICE <https://sparql.nextprot.org/> {
-                ?author foaf:name ?authorName .
+              SERVICE :service4 {
+                ?author :name ?authorName .
                 OPTIONAL {
                   ?author org:affiliation ?affiliation .
                   ?affiliation rdfs:label ?affiliationName .

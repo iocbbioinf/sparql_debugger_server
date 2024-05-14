@@ -13,11 +13,12 @@ import cz.iocb.idsm.debugger.model.Tree.Node;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static cz.iocb.idsm.debugger.util.DebuggerUtil.prettyPrintTree;
+import static cz.iocb.idsm.debugger.util.DebuggerUtil.*;
 import static cz.iocb.idsm.debugger.util.HttpUtil.*;
-import static cz.iocb.idsm.debugger.util.DebuggerUtil.unwrapIri;
 import static java.lang.String.format;
 
 @Service
@@ -32,18 +33,21 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
     private String debugServiceUriStr;
 
     private final AtomicLong endpointCounter = new AtomicLong(0);
-    private final Map<Long, String> endpointMap = Collections.synchronizedMap(new HashMap<>());
+    private final Map<Long, String> endpointMap = new ConcurrentHashMap<>();
 
     private static final Logger logger = LoggerFactory.getLogger(SparqlQueryServiceImpl.class);
 
     @Override
     public Tree<SparqlQueryInfo> createQueryTree(String endpoint, String query, Long queryId) throws SparqlDebugException {
+
+        String unPrefixedQuery = substServicePrefixes(query);
+
         try {
-            SparqlLexerDebug lexer = new SparqlLexerDebug(new ANTLRInputStream(query));
+            SparqlLexerDebug lexer = new SparqlLexerDebug(new ANTLRInputStream(unPrefixedQuery));
 
             Long nodeIndex = 0L;
 
-            SparqlQueryInfo rootNode = new SparqlQueryInfo(new URI(endpoint), query, queryId, nodeIndex);
+            SparqlQueryInfo rootNode = new SparqlQueryInfo(new URI(endpoint), unPrefixedQuery, queryId, nodeIndex);
             Tree<SparqlQueryInfo> resultTree = new Tree<>(rootNode);
 
             Stack<QueryStackElement> nodeStack = new Stack<>();
@@ -64,7 +68,7 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                         inService = true;
                     }
 
-                    case SparqlLexerDebug.IRIREF -> {
+                    case SparqlLexerDebug.IRIREF, SparqlLexerDebug.PNAME_LN -> {
                         if (inService) {
                             nodeIndex++;
                             SparqlQueryInfo queryNode = new SparqlQueryInfo(new URI(unwrapIri(token.getText())), null, queryId, nodeIndex);
@@ -74,6 +78,8 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                                     new StringBuilder(), 0);
                         }
                     }
+
+
 
                     case SparqlLexerDebug.OPEN_CURLY_BRACE -> {
                         if (inService) {
@@ -121,7 +127,10 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
 
     @Override
     public String injectOuterServices(String query, EndpointCall endpointCall) {
-        SparqlLexerDebug lexer = new SparqlLexerDebug(new ANTLRInputStream(query));
+
+        String unPrefixedQuery = substServicePrefixes(query);
+
+        SparqlLexerDebug lexer = new SparqlLexerDebug(new ANTLRInputStream(unPrefixedQuery));
 
         Integer injectionCounter = 0;
         boolean inService = false;
@@ -186,6 +195,104 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
             throw new SparqlDebugException(format("Non registered endpoint. EndpointId=%d", endpointId));
         }
 
+        return result;
+    }
+
+    private String substServicePrefixes(String query) {
+        SparqlLexerDebug lexer = new SparqlLexerDebug(new ANTLRInputStream(query));
+
+        Map<String, String> prefixMap = new ConcurrentHashMap<>();
+
+        boolean inService = false;
+        StringBuilder sb = new StringBuilder();
+
+        boolean inPrefix = false;
+        String prefixName = null;
+        boolean inBase = false;
+
+        String base = null;
+
+        for (Token token = lexer.nextToken();
+             token.getType() != Token.EOF;
+             token = lexer.nextToken()) {
+
+            String newTokenStr = token.getText();
+            switch (token.getType()) {
+
+                case SparqlLexerDebug.BASE -> {
+                    inBase = true;
+                }
+
+                case SparqlLexerDebug.PREFIX -> {
+                    inPrefix = true;
+                }
+
+                case SparqlLexerDebug.PNAME_NS -> {
+                    if(inPrefix) {
+                        String[] tokenArr = token.getText().split(":");
+                        if(tokenArr.length > 0) {
+                            prefixName = tokenArr[0].trim();
+                        } else {
+                            prefixName = "";
+                        }
+                    }
+                }
+
+                case SparqlLexerDebug.SERVICE -> {
+                    inService = true;
+                }
+
+                case SparqlLexerDebug.PNAME_LN -> {
+                    if (inService) {
+                        newTokenStr = resolvePrefixedValue(token.getText(), prefixMap);
+                        inService = false;
+                    }
+                }
+
+                case SparqlLexerDebug.IRIREF -> {
+                    if(inBase) {
+                        base = token.getText();
+                        inBase = false;
+                    }
+
+                    if(inPrefix) {
+                        prefixMap.put(prefixName, token.getText());
+                        inPrefix = false;
+                    }
+
+                    if(inService) {
+                        if(base != null) {
+                            newTokenStr = resolveRelativeIri(token.getText(), base);
+                        }
+                        inService = false;
+                    }
+                }
+            }
+
+            sb.append(newTokenStr);
+        }
+
+        return sb.toString();
+    }
+
+    private String resolvePrefixedValue(String prefixedValue, Map<String, String> prefixMap) {
+        String[] strArr = prefixedValue.split(":");
+        String prefix = "";
+        String value = "";
+        if(strArr.length == 1) {
+            value = strArr[0].trim();
+        } else {
+            prefix = strArr[0].trim();
+            value = strArr[1].trim();
+        }
+
+        String result = wrapIri(format("%s%s", unwrapIri(prefixMap.get(prefix)), value));
+
+        return result;
+    }
+
+    private String resolveRelativeIri(String relIri, String baseIri) {
+        String result = wrapIri(format("%s%s", unwrapIri(baseIri), unwrapIri(relIri)));
         return result;
     }
 
