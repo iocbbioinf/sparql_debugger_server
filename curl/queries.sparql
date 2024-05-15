@@ -64,3 +64,101 @@ SELECT * WHERE {
     ?CHEBI up:name ?CHEBI_UNIPROT_NAME .
   }
 }
+---------------------------
+
+endpoint: https://sparql.uniprot.org
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX chembl: <http://rdf.ebi.ac.uk/terms/chembl#>
+PREFIX uniprot: <http://purl.uniprot.org/core/>
+PREFIX sachem: <http://bioinfo.uochb.cas.cz/rdf/v1.0/sachem#>
+PREFIX endpoint: <https://idsm.elixir-czech.cz/sparql/endpoint/>
+
+SELECT ?COMPOUND ?UNIPROT ?ORGANISM_NAME WHERE
+{
+
+  {
+    SELECT ?UNIPROT ?ORGANISM WHERE
+    {
+      ?UNIPROT uniprot:organism ?ORGANISM.
+    } LIMIT 2
+  }
+
+    SERVICE endpoint:idsm {
+      SERVICE endpoint:chembl {
+        SERVICE endpoint:chembl {
+          ?COMPOUND sachem:substructureSearch [
+              sachem:query "CC(=O)Oc1ccccc1C(O)=O" ]
+        }
+
+        ?COMPOUND sachem:substructureSearch [
+            sachem:query "CC(=O)Oc1ccccc1C(O)=O" ]
+      }
+
+    ?ACTIVITY rdf:type chembl:Activity;
+      chembl:hasMolecule ?COMPOUND;
+      chembl:hasAssay ?ASSAY.
+
+    SERVICE endpoint:idsm {
+      SERVICE endpoint:chembl {
+        ?COMPOUND_1 sachem:substructureSearch [
+            sachem:query "CC(=O)Oc1ccccc1C(O)=O" ]
+      }
+
+      ?ACTIVITY rdf:type chembl:Activity;
+                chembl:hasMolecule ?COMPOUND;
+                chembl:hasAssay ?ASSAY.
+      ?ASSAY chembl:hasTarget ?TARGET.
+      ?TARGET chembl:hasTargetComponent ?COMPONENT.
+      ?COMPONENT chembl:targetCmptXref ?UNIPROT.
+      ?UNIPROT rdf:type chembl:UniprotRef.
+    }
+
+    ?UNIPROT rdf:type chembl:UniprotRef.
+  }
+
+  ?UNIPROT uniprot:organism ?COMPOUND_1.
+  ?ORGANISM uniprot:scientificName ?ORGANISM_NAME.
+}
+LIMIT 10
+
+---------------------------------------
+endpoint: https://sparql.uniprot.org
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX chembl: <http://rdf.ebi.ac.uk/terms/chembl#>
+PREFIX uniprot: <http://purl.uniprot.org/core/>
+PREFIX sachem: <http://bioinfo.uochb.cas.cz/rdf/v1.0/sachem#>
+PREFIX endpoint: <https://idsm.elixir-czech.cz/sparql/endpoint/>
+
+SELECT ?COMPOUND ?UNIPROT ?ORGANISM_NAME WHERE
+{
+    {
+      SELECT ?UNIPROT ?ORGANISM WHERE
+      {
+        ?UNIPROT uniprot:organism ?ORGANISM.
+      } LIMIT 5
+    }
+
+    SERVICE endpoint:idsm {
+      SERVICE endpoint:chembl {
+        SERVICE endpoint:chembl {
+          ?COMPOUND sachem:substructureSearch [
+              sachem:query "CC(=O)Oc1ccccc1C(O)=O" ]
+        }
+        ?COMPOUND sachem:substructureSearch [
+            sachem:query "CC(=O)Oc1ccccc1C(O)=O" ]
+      }
+
+    ?ACTIVITY rdf:type chembl:Activity;
+      chembl:hasMolecule ?COMPOUND;
+      chembl:hasAssay ?ASSAY.
+    ?ASSAY chembl:hasTarget ?TARGET.
+    ?TARGET chembl:hasTargetComponent ?COMPONENT.
+    ?COMPONENT chembl:targetCmptXref ?UNIPROT.
+    ?UNIPROT rdf:type chembl:UniprotRef.
+  }
+
+  ?UNIPROT uniprot:organism ?ORGANISM.
+  ?ORGANISM uniprot:scientificName ?ORGANISM_NAME.
+}
