@@ -14,7 +14,7 @@ import java.net.http.HttpResponse;
 import java.util.Optional;
 
 public interface SparqlEndpointService {
-    Node<EndpointCall>  createServiceEndpointNode(String endpoint, Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode);
+    Node<EndpointCall>  createServiceEndpointNode(String endpoint, Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode, Long serviceCallId);
     Node<EndpointCall> createQueryEndpointRoot(URI endpoint);
 
     HttpRequest prepareEndpointToCall(URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode);

@@ -17,6 +17,7 @@ public class HttpUtil {
     public static final String PATH_QUERY_ID = "query";
     public static final String PATH_PARENT_CALL_ID = "parent";
     public static final String PATH_SUBQUERY_ID = "subquery";
+    public static final String PATH_SERVICE_CALL_ID = "serviceCall";
     public static final String PATH_ENDPOINT = "endpoint";
 
     public static final String PARAM_QUERY = "query";

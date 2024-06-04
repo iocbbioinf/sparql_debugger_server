@@ -13,17 +13,18 @@ public class EndpointCall {
     private Long startTime;
     private Long duration;
     private String endpoint;
-    private Long resultsCount;
+    private Long serviceCallId;
 
     private Integer httpStatus;
     private EndpointNodeState state = EndpointNodeState.NONE;
 
-    public EndpointCall(Long queryId, Long nodeId, Tree.Node<SparqlQueryInfo> queryNode, Long parentNodeId, String endpoint) {
+    public EndpointCall(Long queryId, Long nodeId, Tree.Node<SparqlQueryInfo> queryNode, Long parentNodeId, String endpoint, Long serviceCallId) {
         this.queryId = queryId;
         this.nodeId = nodeId;
         this.queryNode = queryNode;
         this.parentNodeId = parentNodeId;
         this.endpoint = endpoint;
+        this.serviceCallId = serviceCallId;
     }
 
     public Long getQueryId() {
@@ -104,16 +105,24 @@ public class EndpointCall {
         this.endpoint = endpoint;
     }
 
+    public Long getServiceCallId() {
+        return serviceCallId;
+    }
+
+    public void setServiceCallId(Long serviceCallId) {
+        this.serviceCallId = serviceCallId;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         EndpointCall that = (EndpointCall) o;
-        return Objects.equals(queryId, that.queryId) && Objects.equals(nodeId, that.nodeId) && Objects.equals(parentNodeId, that.parentNodeId) && Objects.equals(seqId, that.seqId) && Objects.equals(queryNode, that.queryNode) && Objects.equals(startTime, that.startTime) && Objects.equals(endpoint, that.endpoint) && Objects.equals(resultsCount, that.resultsCount) && Objects.equals(httpStatus, that.httpStatus) && state == that.state;
+        return Objects.equals(queryId, that.queryId) && Objects.equals(nodeId, that.nodeId) && Objects.equals(parentNodeId, that.parentNodeId) && Objects.equals(seqId, that.seqId) && Objects.equals(queryNode, that.queryNode) && Objects.equals(startTime, that.startTime) && Objects.equals(duration, that.duration) && Objects.equals(endpoint, that.endpoint) && Objects.equals(serviceCallId, that.serviceCallId) && Objects.equals(httpStatus, that.httpStatus) && state == that.state;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(queryId, nodeId, parentNodeId, seqId, queryNode, startTime, endpoint, resultsCount, httpStatus, state);
+        return Objects.hash(queryId, nodeId, parentNodeId, seqId, queryNode, startTime, duration, endpoint, serviceCallId, httpStatus, state);
     }
 }

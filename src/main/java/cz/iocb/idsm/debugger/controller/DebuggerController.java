@@ -19,6 +19,7 @@ import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.REQUEST;
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.RESPONSE;
@@ -43,12 +44,13 @@ public class DebuggerController {
 
     private static final Logger logger = LoggerFactory.getLogger(DebuggerController.class);
 
-    @PostMapping("/service/query/{queryId}/parent/{parentEndpointNodeId}/subquery/{subqueryId}/endpoint/{endpointId}")
+    @PostMapping("/service/query/{queryId}/parent/{parentEndpointNodeId}/subquery/{subqueryId}/serviceCall/{serviceCallId}/endpoint/{endpointId}")
     public ResponseEntity<String> debugServicePost(@RequestHeader Map<String, String> headerMap,
                              @PathVariable Long endpointId,
                              @PathVariable Long queryId,
                              @PathVariable Long parentEndpointNodeId,
                              @PathVariable Long subqueryId,
+                             @PathVariable Long serviceCallId,
                              @RequestParam(name = PARAM_QUERY, required = false) String query,
                              @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
                              @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
@@ -67,17 +69,18 @@ public class DebuggerController {
         sparqlRequest.setDefaultGraphUri(defaultGraphUri);
         sparqlRequest.setHeaderMap(headerMap);
 
-        HttpResponse<String> response = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId);
+        HttpResponse<String> response = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
 
         return new ResponseEntity<>(response.body(), httpHeaders2MultiValueMap(response.headers()), response.statusCode());
     }
 
-    @GetMapping("/service/query/{queryId}/parent/{parentEndpointNodeId}/subquery/{subqueryId}/endpoint/{endpointId}")
+    @GetMapping("/service/query/{queryId}/parent/{parentEndpointNodeId}/subquery/{subqueryId}/serviceCall/{serviceCallId}/endpoint/{endpointId}")
     public ResponseEntity<String> debugServiceGet(@RequestHeader Map<String, String> headerMap,
                                                   @PathVariable Long endpointId,
                                                   @PathVariable Long queryId,
                                                   @PathVariable Long parentEndpointNodeId,
                                                   @PathVariable Long subqueryId,
+                                                  @PathVariable Long serviceCallId,
                                                   @RequestParam(name = PARAM_QUERY, required = false) String query,
                                                   @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
                                                   @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri
@@ -89,9 +92,14 @@ public class DebuggerController {
         sparqlRequest.setDefaultGraphUri(defaultGraphUri);
         sparqlRequest.setHeaderMap(headerMap);
 
-        HttpResponse<String> response = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId);
+        HttpResponse<String> response = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
 
         return new ResponseEntity<>(response.body(), httpHeaders2MultiValueMap(response.headers()), response.statusCode());
+    }
+
+    @PostMapping("query/{queryId}/cancel")
+    public void cancelQuery(@PathVariable Long queryId) {
+        //endpointService.cancelQuery()
     }
 
 
@@ -196,19 +204,18 @@ public class DebuggerController {
 
 
 
-    private HttpResponse<String> executeService(Long endpointId, Long queryId, Long parentEndpointNodeId, Long subqueryId) {
-        logger.debug("executeService - start: queryId={}, parentEndpointNodeId={}, subqueryId={}, endpointId={}",
-                queryId, parentEndpointNodeId, subqueryId, endpointId);
+    private HttpResponse<String> executeService(Long endpointId, Long queryId, Long parentEndpointNodeId, Long subqueryId, Long serviceCallId) {
+        logger.debug("executeService - start: queryId={}, parentEndpointNodeId={}, subqueryId={}, serviceCallId={}, endpointId={}",
+                queryId, parentEndpointNodeId, subqueryId, serviceCallId, endpointId);
 
         String endpoint = queryService.getEndpoint(endpointId);
 
-        Node<SparqlQueryInfo> subqueryNode = queryService.getQueryInfoNode(queryId, subqueryId)
-                .orElseThrow(() -> new SparqlDebugException(format("queryId param value is not valid. querId: %d", queryId)));
+        Optional<Node<SparqlQueryInfo>> subqueryNode = queryService.getQueryInfoNode(queryId, subqueryId);
 
         Node<EndpointCall> parentEndpointNode = endpointService.getEndpointNode(queryId, parentEndpointNodeId)
                 .orElseThrow(() -> new SparqlDebugException(format("queryId param value is not valid. querId: %d", queryId)));
 
-        Node<EndpointCall> endpointCall = endpointService.createServiceEndpointNode(endpoint, subqueryNode, parentEndpointNode);
+        Node<EndpointCall> endpointCall = endpointService.createServiceEndpointNode(endpoint, subqueryNode.orElseGet(null), parentEndpointNode, serviceCallId);
 
         URI endpointUri;
         try {

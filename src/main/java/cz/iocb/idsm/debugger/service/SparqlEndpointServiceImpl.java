@@ -51,11 +51,11 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     private AtomicLong endpointCallCounter = new AtomicLong(0);
 
     @Override
-    public Node<EndpointCall> createServiceEndpointNode(String endpoint, Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode) {
+    public Node<EndpointCall> createServiceEndpointNode(String endpoint, Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode, Long serviceCallId) {
         logger.debug("createServiceEndpointNode - start");
 
         EndpointCall endpointCall = new EndpointCall(parentNode.getData().getQueryId(), endpointCallCounter.getAndAdd(1),
-                queryNode, parentNode.getData().getNodeId(), endpoint);
+                queryNode, parentNode.getData().getNodeId(), endpoint, serviceCallId);
 
         logger.debug("createServiceEndpointNode - end");
         return parentNode.addNode(endpointCall);
@@ -69,7 +69,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
         Tree<SparqlQueryInfo> queryTree = sparqlQueryService.createQueryTree(endpoint.toString(), sparqlRequest.getQuery(), queryId);
 
-        EndpointCall endpointRoot = new EndpointCall(queryId, endpointCallCounter.getAndAdd(1), queryTree.getRoot(), null, endpoint.toString());
+        EndpointCall endpointRoot = new EndpointCall(queryId, endpointCallCounter.getAndAdd(1), queryTree.getRoot(), null, endpoint.toString(), 1L);
         Tree<EndpointCall> endpointTree = new Tree<>(endpointRoot,
                 node -> {
                     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -112,10 +112,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         if(endpointCallNode.getParent() == null) {
             endpointCall.setSeqId(1L);
         } else {
-
             endpointCall.setSeqId(endpointCallNode.getParent().getChildren().stream()
-                    .filter(en -> en.getData().getQueryNode().getData().nodeId.equals(endpointCall.getQueryNode().getData().nodeId) && endpointCall.getState() != EndpointNodeState.NONE)
-                    .count() + 1);
+                    .filter(en -> en.getData().getServiceCallId().equals(endpointCall.getServiceCallId()) && endpointCall.getState() != EndpointNodeState.NONE)
+                    .count());
         }
 
         String proxyQuery = sparqlQueryService.injectOuterServices(sparqlRequest.getQuery(), endpointCallNode.getData());

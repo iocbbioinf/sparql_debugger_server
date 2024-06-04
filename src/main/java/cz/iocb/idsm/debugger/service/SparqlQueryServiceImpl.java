@@ -14,7 +14,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static cz.iocb.idsm.debugger.util.DebuggerUtil.*;
@@ -26,9 +25,6 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
 
     private final Map<Long, Tree<SparqlQueryInfo>> queryMap = new HashMap<>();
 
-    public static final String SYS_VAR_PROXY_ENDPOINT = "proxyEndpoint";
-    public static final String DEFAULT_PROXY_ENDPOINT = "localhost:8080";
-
     @Value("${debugService:localhost:8080/service}")
     private String debugServiceUriStr;
 
@@ -36,6 +32,8 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
     private final Map<Long, String> endpointMap = new ConcurrentHashMap<>();
 
     private static final Logger logger = LoggerFactory.getLogger(SparqlQueryServiceImpl.class);
+
+    public static final Long SUBQUERY_NOT_EXISTING_ID = -1L;
 
     @Override
     public Tree<SparqlQueryInfo> createQueryTree(String endpoint, String query, Long queryId) throws SparqlDebugException {
@@ -148,9 +146,9 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                     }
                     case SparqlLexerDebug.IRIREF -> {
                         if (inService) {
-                            Long subqueryId = getChildSubbqueryId(endpointCall.getQueryNode(), injectionCounter);
+                            Long subqueryId = getChildQuerySubqueryId(endpointCall.getQueryNode(), injectionCounter);
                             ProxyQueryParams proxyQueryParams =
-                                    new ProxyQueryParams(endpointCall.getQueryId(), endpointCall.getNodeId(), subqueryId);
+                                    new ProxyQueryParams(endpointCall.getQueryId(), endpointCall.getNodeId(), subqueryId, injectionCounter.longValue());
                             String iri = token.getText();
                             newTokenStr = injectUrl(unwrapIri(iri), proxyQueryParams);
                             injectionCounter ++;
@@ -296,8 +294,12 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
         return result;
     }
 
-    private Long getChildSubbqueryId(Node<SparqlQueryInfo> queryNode, Integer position) {
-        return queryNode.getChildren().get(position).getData().nodeId;
+    private Long getChildQuerySubqueryId(Node<SparqlQueryInfo> queryNode, Integer position) {
+        if(queryNode.getChildren().get(position) != null) {
+            return queryNode.getChildren().get(position).getData().nodeId;
+        } else {
+            return SUBQUERY_NOT_EXISTING_ID;
+        }
     }
 
     private String injectUrl(String endpoint, ProxyQueryParams proxyQueryParams) {
@@ -320,7 +322,9 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                 .append(PATH_QUERY_ID).append("/").append(proxyQueryParams.getQueryId()).append("/")
                 .append(PATH_PARENT_CALL_ID).append("/").append(proxyQueryParams.getParentId()).append("/")
                 .append(PATH_SUBQUERY_ID).append("/").append(proxyQueryParams.getSubQueryId()).append("/")
-                .append(PATH_ENDPOINT).append("/").append(endpointId);
+                .append(PATH_SERVICE_CALL_ID).append("/").append(proxyQueryParams.getServiceCallId()).append("/")
+                .append(PATH_ENDPOINT).append("/").append(endpointId).append("/");
+
 
         String injectedUrl = sb.toString();
 
