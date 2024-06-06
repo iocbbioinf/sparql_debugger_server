@@ -132,6 +132,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         EndpointCall endpointCall = endpointCallNode.getData();
 
         try {
+            endpointCall.getCallThread().set(Thread.currentThread());
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             processResponse(response, endpointCall, endpointCallNode, queryId);
@@ -153,6 +154,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             Thread.currentThread().interrupt();
         }
 
+        endpointCall.getCallThread().set(null);
         return response;
     }
 

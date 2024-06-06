@@ -3,6 +3,7 @@ package cz.iocb.idsm.debugger.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class EndpointCall {
     private Long queryId;
@@ -14,6 +15,7 @@ public class EndpointCall {
     private Long duration;
     private String endpoint;
     private Long serviceCallId;
+    private AtomicReference<Thread> callThread;
 
     private Integer httpStatus;
     private EndpointNodeState state = EndpointNodeState.NONE;
@@ -25,6 +27,7 @@ public class EndpointCall {
         this.parentNodeId = parentNodeId;
         this.endpoint = endpoint;
         this.serviceCallId = serviceCallId;
+        this.callThread = new AtomicReference<>(null);
     }
 
     public Long getQueryId() {
@@ -111,6 +114,11 @@ public class EndpointCall {
 
     public void setServiceCallId(Long serviceCallId) {
         this.serviceCallId = serviceCallId;
+    }
+
+    @JsonIgnore
+    public AtomicReference<Thread> getCallThread() {
+        return callThread;
     }
 
     @Override
