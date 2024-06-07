@@ -180,7 +180,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
         httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(resp -> {
+                    endpointCall.getCallThread().set(Thread.currentThread());
                     processResponse(resp, endpointCall, endpointCallNode, queryId);
+                    endpointCall.getCallThread().set(null);
                 })
                 .exceptionally(e -> {
                     logger.error("Error during request. queryId={}, nodeId={} error={}",  queryId, endpointCall.getNodeId(), e.getMessage());
@@ -276,6 +278,46 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         HttpRequest request = requestBuilder.build();
 
         return request;
+    }
+
+    @Override
+    public void cancelQuery(Long queryId) {
+        Tree<EndpointCall> callTree = queryExecutionMap.get(queryId);
+        cancelCallTreeThreads(callTree.getRoot());
+        deleteReqRespFiles(queryId);
+        queryExecutionMap.remove(queryId);
+    }
+
+    @Override
+    public void deleteQuery(Long queryId) {
+        deleteReqRespFiles(queryId);
+        queryExecutionMap.remove(queryId);
+    }
+
+    private void cancelCallTreeThreads(Node<EndpointCall> node) {
+        if(node == null) {
+            return;
+        }
+
+        node.getChildren().forEach(this::cancelCallTreeThreads);
+
+        if(node.getData().getCallThread().get() != null) {
+            node.getData().getCallThread().get().interrupt();
+        }
+    }
+
+    private void deleteReqRespFiles(Long queryId) {
+        File tmpDir = new File(FileId.TMP_DIR);
+
+        File[] files = tmpDir.listFiles((dir, name) -> FileId.isQueryReqResp(name, queryId));
+
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile()) {
+                    file.delete();
+                }
+            }
+        }
     }
 
     private void saveRequest(HttpRequest request, Long queryId, Long nodeId) {

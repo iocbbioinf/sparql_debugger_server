@@ -97,13 +97,17 @@ public class DebuggerController {
         return new ResponseEntity<>(response.body(), httpHeaders2MultiValueMap(response.headers()), response.statusCode());
     }
 
-    @PostMapping("query/{queryId}/cancel")
+    @PostMapping("/query/{queryId}/cancel")
     public void cancelQuery(@PathVariable Long queryId) {
-        //endpointService.cancelQuery()
+        endpointService.cancelQuery(queryId);
     }
 
+    @PostMapping("/query/{queryId}/delete")
+    public void deleteQuery(@PathVariable Long queryId) {
+        endpointService.deleteQuery(queryId);
+    }
 
-    @GetMapping("query")
+    @GetMapping("/query")
     public SseEmitter debugQueryGet(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
                                @RequestParam(name = PARAM_QUERY) String query,
                                @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,

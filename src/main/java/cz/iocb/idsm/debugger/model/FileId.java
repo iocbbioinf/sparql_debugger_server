@@ -1,5 +1,6 @@
 package cz.iocb.idsm.debugger.model;
 
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -22,6 +23,14 @@ public class FileId {
 
     public String getFileName() {
         return Stream.of(this.fileType.name(), this.queryId.toString(), this.callId.toString()).collect(Collectors.joining("_")) + ".tmp";
+    }
+
+    public static Boolean isQueryReqResp(String fileName, Long queryId) {
+
+        String prefixReq = Stream.of(FILE_TYPE.REQUEST.name(), queryId.toString()).collect(Collectors.joining("_"));
+        String prefixResp = Stream.of(FILE_TYPE.RESPONSE.name(), queryId.toString()).collect(Collectors.joining("_"));
+
+        return (fileName.startsWith(prefixReq) || fileName.startsWith(prefixResp));
     }
 
     public enum FILE_TYPE {

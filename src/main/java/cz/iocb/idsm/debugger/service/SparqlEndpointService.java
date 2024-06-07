@@ -26,4 +26,8 @@ public interface SparqlEndpointService {
     Optional<Tree<EndpointCall>> getQueryTree(Long queryId);
 
     FileSystemResource getFile(FileId fileId);
+
+    void cancelQuery(Long queryId);
+
+    void deleteQuery(Long queryId);
 }
