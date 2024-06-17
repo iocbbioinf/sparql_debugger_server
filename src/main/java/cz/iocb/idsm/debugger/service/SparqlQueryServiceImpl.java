@@ -334,4 +334,9 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
 
         return result;
     }
+
+    @Override
+    public void deleteQuery(Long queryId) {
+        queryMap.remove(queryId);
+    }
 }

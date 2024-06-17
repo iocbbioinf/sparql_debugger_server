@@ -1,6 +1,7 @@
 package cz.iocb.idsm.debugger.service;
 
 import cz.iocb.idsm.debugger.model.*;
+import cz.iocb.idsm.debugger.util.DebuggerUtil;
 import cz.iocb.idsm.debugger.util.HttpUtil;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -152,6 +153,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             endpointCallNode.updateNode();
 
             Thread.currentThread().interrupt();
+
+            throw new SparqlDebugException("This thread was interrupted", e);
         }
 
         endpointCall.getCallThread().set(null);
@@ -284,14 +287,13 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     public void cancelQuery(Long queryId) {
         Tree<EndpointCall> callTree = queryExecutionMap.get(queryId);
         cancelCallTreeThreads(callTree.getRoot());
-        deleteReqRespFiles(queryId);
-        queryExecutionMap.remove(queryId);
     }
 
     @Override
     public void deleteQuery(Long queryId) {
-        deleteReqRespFiles(queryId);
         queryExecutionMap.remove(queryId);
+        sparqlQueryService.deleteQuery(queryId);
+        deleteReqRespFiles(queryId);
     }
 
     private void cancelCallTreeThreads(Node<EndpointCall> node) {
