@@ -23,7 +23,7 @@ import static java.lang.String.format;
 @Service
 public class SparqlQueryServiceImpl implements SparqlQueryService {
 
-    private final Map<Long, Tree<SparqlQueryInfo>> queryMap = new HashMap<>();
+    private final Map<Long, Tree<SparqlQueryInfo>> queryMap = new ConcurrentHashMap<>();
 
     @Value("${debugService:localhost:8080/service}")
     private String debugServiceUriStr;
@@ -76,8 +76,6 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                                     new StringBuilder(), 0);
                         }
                     }
-
-
 
                     case SparqlLexerDebug.OPEN_CURLY_BRACE -> {
                         if (inService) {
@@ -305,16 +303,14 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
     private String injectUrl(String endpoint, ProxyQueryParams proxyQueryParams) {
 
         Long endpointId;
-        synchronized (endpointMap) {
-            Optional<Long> endpId = endpointMap.entrySet().stream()
-                    .filter(entry -> entry.getValue().equals(endpoint))
-                    .map(entry -> entry.getKey()).findAny();
-            if(endpId.isPresent()) {
-                endpointId = endpId.get();
-            } else {
-                endpointId = endpointCounter.addAndGet(1);
-                endpointMap.put(endpointId, endpoint);
-            }
+        Optional<Long> endpId = endpointMap.entrySet().stream()
+                .filter(entry -> entry.getValue().equals(endpoint))
+                .map(entry -> entry.getKey()).findAny();
+        if(endpId.isPresent()) {
+            endpointId = endpId.get();
+        } else {
+            endpointId = endpointCounter.addAndGet(1);
+            endpointMap.put(endpointId, endpoint);
         }
 
         StringBuilder sb = new StringBuilder();

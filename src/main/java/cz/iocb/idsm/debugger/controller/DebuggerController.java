@@ -8,6 +8,8 @@ import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -71,6 +73,10 @@ public class DebuggerController {
 
         HttpResponse<String> response = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
 
+        if(response == null) {
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        }
+
         return new ResponseEntity<>(response.body(), httpHeaders2MultiValueMap(response.headers()), response.statusCode());
     }
 
@@ -93,6 +99,10 @@ public class DebuggerController {
         sparqlRequest.setHeaderMap(headerMap);
 
         HttpResponse<String> response = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
+
+        if(response == null) {
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        }
 
         return new ResponseEntity<>(response.body(), httpHeaders2MultiValueMap(response.headers()), response.statusCode());
     }

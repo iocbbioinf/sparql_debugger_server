@@ -12,24 +12,24 @@ import java.util.function.Predicate;
 public class Tree<T> {
     private Node<T> root;
     private SseEmitter emitter;
-    private Consumer<Node<T>> addNodeHandler;
+    private Consumer<Node<T>> nodeHandler;
 
-    public Tree(T rootData, Consumer<Node<T>> addNodeHandler) {
+    public Tree(T rootData, Consumer<Node<T>> nodeHandler) {
         root = new Node<T>(rootData, null, this);
         root.data = rootData;
         root.children = new ArrayList<Node<T>>();
 
         emitter = new SseEmitter(Long.MAX_VALUE);
 
-        this.addNodeHandler = addNodeHandler;
+        this.nodeHandler = nodeHandler;
 
         // TODO
         emitter.onCompletion(() -> {
         });
         emitter.onTimeout(() -> {});
 
-        if(addNodeHandler != null) {
-            addNodeHandler.accept(root);
+        if(nodeHandler != null) {
+            nodeHandler.accept(root);
         }
     }
 
@@ -58,16 +58,16 @@ public class Tree<T> {
             Node<T> node = new Node<T>(data, this, this.tree);
             this.children.add(node);
 
-            if(tree.addNodeHandler != null) {
-                tree.addNodeHandler.accept(node);
+            if(tree.nodeHandler != null) {
+                tree.nodeHandler.accept(node);
             }
 
             return node;
         }
 
         public Node<T> updateNode() {
-            if(tree.addNodeHandler != null) {
-                tree.addNodeHandler.accept(this);
+            if(tree.nodeHandler != null) {
+                tree.nodeHandler.accept(this);
             }
 
             return this;

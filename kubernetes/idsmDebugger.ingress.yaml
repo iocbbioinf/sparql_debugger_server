@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: idsm-debugger-ingress
+  name: idsm-debugger-ingress2
   namespace: sparql
   annotations:
     kubernetes.io/ingress.class: "nginx"
@@ -13,10 +13,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - "idsm-debugger.dyn.cloud.e-infra.cz"
-      secretName: idsm-debugger-dyn-clout-e-infra-cz-tls
+        - "idsm-debugger2.dyn.cloud.e-infra.cz"
+      secretName: idsm-debugger2-dyn-cloud-e-infra-cz-tls
   rules:
-    - host: "idsm-debugger.dyn.cloud.e-infra.cz"
+    - host: "idsm-debugger2.dyn.cloud.e-infra.cz"
       http:
         paths:
           - path: /

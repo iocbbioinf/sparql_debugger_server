@@ -1,7 +1,6 @@
 package cz.iocb.idsm.debugger.service;
 
 import cz.iocb.idsm.debugger.model.*;
-import cz.iocb.idsm.debugger.util.DebuggerUtil;
 import cz.iocb.idsm.debugger.util.HttpUtil;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
@@ -30,7 +29,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.REQUEST;
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.RESPONSE;
-import static java.lang.String.format;
 
 
 @Service
@@ -50,6 +48,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     private Map<Long, Tree<EndpointCall>> queryExecutionMap = new ConcurrentHashMap<>();
     private AtomicLong queryCounter = new AtomicLong(0);
     private AtomicLong endpointCallCounter = new AtomicLong(0);
+
+    private Set<Long> cancellingQuerySet = Collections.synchronizedSet(new HashSet<>());
+
 
     @Override
     public Node<EndpointCall> createServiceEndpointNode(String endpoint, Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode, Long serviceCallId) {
@@ -133,10 +134,18 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         EndpointCall endpointCall = endpointCallNode.getData();
 
         try {
+            if(cancellingQuerySet.contains(queryId)) {
+                return null;
+            }
+
             endpointCall.getCallThread().set(Thread.currentThread());
+
+            //TODO
+            Thread.sleep(120000);
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             processResponse(response, endpointCall, endpointCallNode, queryId);
+            endpointCall.getCallThread().set(null);
 
             logger.debug("callEndpoint - end. queryId={}, nodeId={}", queryId, endpointCall.getNodeId());
         } catch (IOException e) {
@@ -153,11 +162,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             endpointCallNode.updateNode();
 
             Thread.currentThread().interrupt();
-
-            throw new SparqlDebugException("This thread was interrupted", e);
         }
 
-        endpointCall.getCallThread().set(null);
         return response;
     }
 
@@ -285,6 +291,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     @Override
     public void cancelQuery(Long queryId) {
+        cancellingQuerySet.add(queryId);
         Tree<EndpointCall> callTree = queryExecutionMap.get(queryId);
         cancelCallTreeThreads(callTree.getRoot());
     }
@@ -294,6 +301,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         queryExecutionMap.remove(queryId);
         sparqlQueryService.deleteQuery(queryId);
         deleteReqRespFiles(queryId);
+        cancellingQuerySet.remove(queryId);
     }
 
     private void cancelCallTreeThreads(Node<EndpointCall> node) {
