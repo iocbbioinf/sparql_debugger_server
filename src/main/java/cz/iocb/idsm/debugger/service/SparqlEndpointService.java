@@ -30,4 +30,6 @@ public interface SparqlEndpointService {
     void cancelQuery(Long queryId);
 
     void deleteQuery(Long queryId);
+
+    void deleteQueries(Long cutoff);
 }

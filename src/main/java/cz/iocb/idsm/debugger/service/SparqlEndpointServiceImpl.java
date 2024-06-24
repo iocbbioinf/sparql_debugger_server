@@ -141,7 +141,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             endpointCall.getCallThread().set(Thread.currentThread());
 
             //TODO
-            Thread.sleep(120000);
+            Thread.sleep(1000);
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             processResponse(response, endpointCall, endpointCallNode, queryId);
@@ -368,5 +368,20 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         }
 
     }
+
+    @Override
+    public void deleteQueries(Long cutoff) {
+        Set<Long> queriesToDelete = queryExecutionMap.entrySet().stream()
+                .filter(entry ->
+                    entry.getValue().getRoot().findNode(endpointCall ->
+                        endpointCall.getStartTime() < cutoff
+                    ).isPresent()
+                ).map(entry -> entry.getKey()).collect(Collectors.toSet());
+
+        queriesToDelete.forEach(queryId -> deleteQuery(queryId));
+
+        logger.debug("Number of deleted queries = {} ", queriesToDelete.size());
+    }
+
 
 }
