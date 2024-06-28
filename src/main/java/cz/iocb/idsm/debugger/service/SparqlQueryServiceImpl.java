@@ -319,7 +319,7 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                 .append(PATH_PARENT_CALL_ID).append("/").append(proxyQueryParams.getParentId()).append("/")
                 .append(PATH_SUBQUERY_ID).append("/").append(proxyQueryParams.getSubQueryId()).append("/")
                 .append(PATH_SERVICE_CALL_ID).append("/").append(proxyQueryParams.getServiceCallId()).append("/")
-                .append(PATH_ENDPOINT).append("/").append(endpointId).append("/");
+                .append(PATH_ENDPOINT).append("/").append(endpointId);
 
 
         String injectedUrl = sb.toString();
