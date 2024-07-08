@@ -25,9 +25,9 @@ spec:
           type: RuntimeDefault
       containers:
         - name: idsm-debugger
-          image: registry.gitlab.com/marekmoosuochb/testrepo/idsmdebugger:45
+          image: registry.gitlab.com/marekmoosuochb/testrepo/idsmdebugger:58
           securityContext: # Container security context
-            runAsUser: 10001
+            runAsUser: 1000
             allowPrivilegeEscalation: false
             capabilities:
               drop:
@@ -36,7 +36,7 @@ spec:
             - containerPort: 8080
           env:
             - name: "debugService"
-              value: "http://idsm-debugger.dyn.cloud.e-infra.cz/service"
+              value: "https://idsm-debugger6.dyn.cloud.e-infra.cz/service"
             - name: "_JAVA_OPTIONS"
               value: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:8000"
           resources:

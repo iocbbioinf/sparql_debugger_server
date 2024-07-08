@@ -105,8 +105,10 @@ public class HttpUtil {
     }
 
     public static MultiValueMap<String, String> httpHeaders2MultiValueMap(HttpHeaders headers) {
+        //TODO
         MultiValueMap<String, String> resultMap = new LinkedMultiValueMap<>();
         headers.map().entrySet().stream()
+                .filter(entry -> !entry.getKey().toLowerCase().equals("transfer-encoding"))
                 .forEach(entry -> entry.getValue().stream()
                         .forEach(str -> resultMap.add(entry.getKey(), str)));
 

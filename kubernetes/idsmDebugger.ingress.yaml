@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: idsm-debugger-ingress2
+  name: idsm-debugger-ingress6
   namespace: sparql
   annotations:
     kubernetes.io/ingress.class: "nginx"
@@ -9,14 +9,20 @@ metadata:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "21600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "21600"
     nginx.ingress.kubernetes.io/eventsource: "true"
+#    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+#    nginx.ingress.kubernetes.io/client-body-buffer-size: "1m"
+#    nginx.ingress.kubernetes.io/proxy-busy-buffers-size: "1m"
+    nginx.org/client-max-body-size: "10m"
 spec:
   tls:
     - hosts:
-        - "idsm-debugger2.dyn.cloud.e-infra.cz"
-      secretName: idsm-debugger2-dyn-cloud-e-infra-cz-tls
+        - "idsm-debugger6.dyn.cloud.e-infra.cz"
+      secretName: idsm-debugger6-dyn-cloud-e-infra-cz-tls
   rules:
-    - host: "idsm-debugger2.dyn.cloud.e-infra.cz"
+    - host: "idsm-debugger6.dyn.cloud.e-infra.cz"
       http:
         paths:
           - path: /
