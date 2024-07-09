@@ -3,6 +3,9 @@ package cz.iocb.idsm.debugger.util;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
@@ -11,6 +14,7 @@ import java.net.http.HttpRequest;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Flow;
+import java.util.zip.GZIPInputStream;
 
 public class HttpUtil {
 
@@ -106,14 +110,40 @@ public class HttpUtil {
 
     public static MultiValueMap<String, String> httpHeaders2MultiValueMap(HttpHeaders headers) {
         //TODO
+
         MultiValueMap<String, String> resultMap = new LinkedMultiValueMap<>();
         headers.map().entrySet().stream()
-                .filter(entry -> !entry.getKey().toLowerCase().equals("transfer-encoding"))
-                .forEach(entry -> entry.getValue().stream()
-                        .forEach(str -> resultMap.add(entry.getKey(), str)));
+                .filter(entry -> entry.getKey().toLowerCase().equals("transfer-encoding") || entry.getKey().toLowerCase().equals("content-encoding"))
+                .findFirst()
+                .map(entry -> {
+                    entry.getValue().stream()
+                            .forEach(str -> resultMap.add(entry.getKey(), str));
+                    return null;
+                });
 
         return resultMap;
     }
+
+    public static String decompressGzipString(String compressedStr) {
+        byte[] compressedBytes = compressedStr.getBytes(StandardCharsets.UTF_8);
+
+        try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(compressedBytes);
+             GZIPInputStream gzipInputStream = new GZIPInputStream(byteArrayInputStream);
+             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = gzipInputStream.read(buffer)) != -1) {
+                byteArrayOutputStream.write(buffer, 0, len);
+            }
+
+            return byteArrayOutputStream.toString(StandardCharsets.UTF_8.name());
+        } catch (IOException e) {
+//            throw new SparqlDebugException("Error during gzip decompression.", e);
+            return compressedStr;
+        }
+    }
+
 
 
 }
