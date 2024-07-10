@@ -110,7 +110,13 @@ public class HttpUtil {
 
     public static MultiValueMap<String, String> httpHeaders2MultiValueMap(HttpHeaders headers) {
         //TODO
+        MultiValueMap<String, String> resultMap = new LinkedMultiValueMap<>();
+        headers.map().entrySet().stream()
+                .filter(entry -> !entry.getKey().toLowerCase().equals("transfer-encoding"))
+                .forEach(entry -> entry.getValue().stream()
+                        .forEach(str -> resultMap.add(entry.getKey(), str)));
 
+        /*
         MultiValueMap<String, String> resultMap = new LinkedMultiValueMap<>();
         headers.map().entrySet().stream()
                 .filter(entry -> entry.getKey().toLowerCase().equals("transfer-encoding") || entry.getKey().toLowerCase().equals("content-encoding"))
@@ -120,6 +126,7 @@ public class HttpUtil {
                             .forEach(str -> resultMap.add(entry.getKey(), str));
                     return null;
                 });
+         */
 
         return resultMap;
     }

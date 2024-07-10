@@ -2,7 +2,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: idsm-debugger-ingress6
+  name: idsm-debugger-ingress7
   namespace: sparql
   annotations:
     kubernetes.io/ingress.class: "nginx"
@@ -18,13 +18,14 @@ metadata:
 #    nginx.ingress.kubernetes.io/proxy-busy-buffers-size: "1m"
     nginx.org/client-max-body-size: "10m"
     nginx.ingress.kubernetes.io/custom-http-errors: "502"
+    nginx.ingress.kubernetes.io/ignore_invalid_headers: "on"
 spec:
   tls:
     - hosts:
-        - "idsm-debugger6.dyn.cloud.e-infra.cz"
-      secretName: idsm-debugger6-dyn-cloud-e-infra-cz-tls
+        - "idsm-debugger7.dyn.cloud.e-infra.cz"
+      secretName: idsm-debugger7-dyn-cloud-e-infra-cz-tls
   rules:
-    - host: "idsm-debugger6.dyn.cloud.e-infra.cz"
+    - host: "idsm-debugger7.dyn.cloud.e-infra.cz"
       http:
         paths:
           - path: /
