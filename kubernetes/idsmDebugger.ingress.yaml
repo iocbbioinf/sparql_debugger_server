@@ -18,7 +18,7 @@ metadata:
 #    nginx.ingress.kubernetes.io/proxy-busy-buffers-size: "1m"
     nginx.org/client-max-body-size: "10m"
     nginx.ingress.kubernetes.io/custom-http-errors: "502"
-    nginx.ingress.kubernetes.io/ignore_invalid_headers: "on"
+#    nginx.ingress.kubernetes.io/ignore_invalid_headers: "on"
 spec:
   tls:
     - hosts:

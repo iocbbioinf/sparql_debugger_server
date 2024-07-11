@@ -5,6 +5,7 @@ import cz.iocb.idsm.debugger.service.SparqlEndpointService;
 import cz.iocb.idsm.debugger.service.SparqlQueryService;
 import cz.iocb.idsm.debugger.model.Tree.Node;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,17 +15,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.REQUEST;
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.RESPONSE;
+import static cz.iocb.idsm.debugger.util.DebuggerUtil.pickFirstEntryIgnoreCase;
 import static cz.iocb.idsm.debugger.util.HttpUtil.*;
 import static java.lang.String.format;
 
@@ -47,7 +47,7 @@ public class DebuggerController {
     private static final Logger logger = LoggerFactory.getLogger(DebuggerController.class);
 
     @PostMapping("/service/query/{queryId}/parent/{parentEndpointNodeId}/subquery/{subqueryId}/serviceCall/{serviceCallId}/endpoint/{endpointId}")
-    public ResponseEntity<String> debugServicePost(@RequestHeader Map<String, String> headerMap,
+    public void debugServicePost(@RequestHeader Map<String, String> headerMap,
                              @PathVariable Long endpointId,
                              @PathVariable Long queryId,
                              @PathVariable Long parentEndpointNodeId,
@@ -56,7 +56,8 @@ public class DebuggerController {
                              @RequestParam(name = PARAM_QUERY, required = false) String query,
                              @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
                              @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
-                             @RequestBody(required = false) String body
+                             @RequestBody(required = false) String body,
+                                 HttpServletResponse response
                              ) {
 
         SparqlRequestType sparqlRequestType = getRequestType(headerMap.get(HEADER_CONTENT_TYPE));
@@ -71,17 +72,13 @@ public class DebuggerController {
         sparqlRequest.setDefaultGraphUri(defaultGraphUri);
         sparqlRequest.setHeaderMap(headerMap);
 
-        HttpResponse<String> response = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
+        HttpResponse<byte[]> httpResponse = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
 
-        if(response == null) {
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        }
-
-        return new ResponseEntity<>(response.body(), httpHeaders2MultiValueMap(response.headers()), response.statusCode());
+        createResponse(httpResponse, response);
     }
 
     @GetMapping("/service/query/{queryId}/parent/{parentEndpointNodeId}/subquery/{subqueryId}/serviceCall/{serviceCallId}/endpoint/{endpointId}")
-    public ResponseEntity<String> debugServiceGet(@RequestHeader Map<String, String> headerMap,
+    public void debugServiceGet(@RequestHeader Map<String, String> headerMap,
                                                   @PathVariable Long endpointId,
                                                   @PathVariable Long queryId,
                                                   @PathVariable Long parentEndpointNodeId,
@@ -89,7 +86,8 @@ public class DebuggerController {
                                                   @PathVariable Long serviceCallId,
                                                   @RequestParam(name = PARAM_QUERY, required = false) String query,
                                                   @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
-                                                  @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri
+                                                  @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
+                                HttpServletResponse response
     ) {
 
         sparqlRequest.setType(SparqlRequestType.GET);
@@ -98,13 +96,29 @@ public class DebuggerController {
         sparqlRequest.setDefaultGraphUri(defaultGraphUri);
         sparqlRequest.setHeaderMap(headerMap);
 
-        HttpResponse<String> response = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
+        HttpResponse<byte[]> httpResponse = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
 
-        if(response == null) {
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        createResponse(httpResponse, response);
+    }
+
+    private void createResponse(HttpResponse<byte[]> httpResponse, HttpServletResponse response) {
+        response.setStatus(httpResponse.statusCode());
+
+        Map<String, List<String>> distinctResponseHeaders = pickFirstEntryIgnoreCase(httpResponse.headers().map());
+
+        distinctResponseHeaders.entrySet().stream()
+                .filter(entry -> !entry.getKey().toLowerCase().equals(":status"))
+                .forEach(entry -> {
+                    String headerValue = String.join(",", entry.getValue());
+                    response.addHeader(entry.getKey(), headerValue);
+                });
+
+        byte[] responseBody = httpResponse.body();
+        try {
+            response.getOutputStream().write(responseBody);
+        } catch (IOException e) {
+            throw new SparqlDebugException("Unable to red endpoint response body stream.", e);
         }
-
-        return new ResponseEntity<>(response.body(), httpHeaders2MultiValueMap(response.headers()), response.statusCode());
     }
 
     @PostMapping("/query/{queryId}/cancel")
@@ -218,7 +232,7 @@ public class DebuggerController {
 
 
 
-    private HttpResponse<String> executeService(Long endpointId, Long queryId, Long parentEndpointNodeId, Long subqueryId, Long serviceCallId) {
+    private HttpResponse<byte[]> executeService(Long endpointId, Long queryId, Long parentEndpointNodeId, Long subqueryId, Long serviceCallId) {
         logger.debug("executeService - start: queryId={}, parentEndpointNodeId={}, subqueryId={}, serviceCallId={}, endpointId={}",
                 queryId, parentEndpointNodeId, subqueryId, serviceCallId, endpointId);
 

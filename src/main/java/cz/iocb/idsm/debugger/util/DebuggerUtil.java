@@ -2,6 +2,10 @@ package cz.iocb.idsm.debugger.util;
 
 import cz.iocb.idsm.debugger.model.Tree;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 public class DebuggerUtil {
@@ -42,6 +46,24 @@ public class DebuggerUtil {
         }
         return sb.toString();
     }
+
+    public static <T> Map<String, T> pickFirstEntryIgnoreCase(Map<String, T> inputMap) {
+        Map<String, T> result = new HashMap<>();
+        Set<String> lowerCaseKeySet = new HashSet<>();
+
+        for (Map.Entry<String, T> entry : inputMap.entrySet()) {
+            String key = entry.getKey();
+            String lowerCaseKey = key.toLowerCase();
+
+            if (!lowerCaseKeySet.contains(lowerCaseKey)) {
+                lowerCaseKeySet.add(lowerCaseKey);
+                result.put(key, entry.getValue());
+            }
+        }
+
+        return result;
+    }
+
 
 
 }

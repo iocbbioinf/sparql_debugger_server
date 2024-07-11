@@ -128,9 +128,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     }
 
     @Override
-    public HttpResponse<String> callEndpointSync(HttpRequest request, URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
+    public HttpResponse<byte[]> callEndpointSync(HttpRequest request, URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
 
-        HttpResponse<String> response = null;
+        HttpResponse<byte[]> response = null;
         EndpointCall endpointCall = endpointCallNode.getData();
 
         try {
@@ -140,9 +140,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
             endpointCall.getCallThread().set(Thread.currentThread());
 
-            //TODO
-            Thread.sleep(1000);
-            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
             processResponse(response, endpointCall, endpointCallNode, queryId);
             endpointCall.getCallThread().set(null);
@@ -167,8 +165,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         return response;
     }
 
-    private void processResponse(HttpResponse<String> response, EndpointCall endpointCall, Node<EndpointCall> endpointCallNode, Long queryId) {
-        String body = response.body();
+    private void processResponse(HttpResponse<byte[]> response, EndpointCall endpointCall, Node<EndpointCall> endpointCallNode, Long queryId) {
+        String body = new String(response.body(), StandardCharsets.UTF_8);
         saveResponse(body, queryId, endpointCall.getNodeId());
 
         if(response.statusCode() >= 200 && response.statusCode() < 300) {
@@ -187,7 +185,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     public void callEndpointAsync(HttpRequest request, URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
         EndpointCall endpointCall = endpointCallNode.getData();
 
-        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
                 .thenAccept(resp -> {
                     endpointCall.getCallThread().set(Thread.currentThread());
                     processResponse(resp, endpointCall, endpointCallNode, queryId);
