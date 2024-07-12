@@ -108,6 +108,7 @@ public class DebuggerController {
 
         distinctResponseHeaders.entrySet().stream()
                 .filter(entry -> !entry.getKey().toLowerCase().equals(":status"))
+                .filter(entry -> !entry.getKey().toLowerCase().equals("transfer-encoding"))
                 .forEach(entry -> {
                     String headerValue = String.join(",", entry.getValue());
                     response.addHeader(entry.getKey(), headerValue);
