@@ -5,22 +5,30 @@ import cz.iocb.idsm.debugger.service.SparqlEndpointService;
 import cz.iocb.idsm.debugger.service.SparqlQueryService;
 import cz.iocb.idsm.debugger.model.Tree.Node;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
+import java.io.*;
+import java.lang.reflect.Array;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.REQUEST;
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.RESPONSE;
@@ -102,6 +110,10 @@ public class DebuggerController {
     }
 
     private void createResponse(HttpResponse<byte[]> httpResponse, HttpServletResponse response) {
+        if(httpResponse == null) {
+            return;
+        }
+
         response.setStatus(httpResponse.statusCode());
 
         Map<String, List<String>> distinctResponseHeaders = pickFirstEntryIgnoreCase(httpResponse.headers().map());
@@ -195,7 +207,7 @@ public class DebuggerController {
     @GetMapping("/query/{queryId}")
     public Tree<EndpointCall> getQueryInfo(@PathVariable Long queryId) {
         if(endpointService.getQueryTree(queryId).isEmpty()) {
-            logger.error(format("Query doesn't exist. queryId=%d", queryId));
+            logger.error("Query doesn't exist. queryId={}", queryId);
             throw new SparqlDebugException(format("Query doesn't exist. queryId=%d", queryId));
         }
 
@@ -204,16 +216,90 @@ public class DebuggerController {
     }
 
     @GetMapping("/query/{queryId}/call/{callId}/request")
-    public org.springframework.core.io.Resource getRequest(@PathVariable String queryId, @PathVariable String callId) {
+    public org.springframework.core.io.Resource getRequest(@PathVariable Long queryId, @PathVariable Long callId) {
         FileId fileId = new FileId(REQUEST, Long.valueOf(queryId), Long.valueOf(callId));
         return endpointService.getFile(fileId);
     }
 
     @GetMapping("/query/{queryId}/call/{callId}/response")
-    public org.springframework.core.io.Resource getResponse(@PathVariable String queryId, @PathVariable String callId) {
+    public void getResponse(@PathVariable Long queryId, @PathVariable Long callId,
+                            @RequestHeader(value = "Range", required = false) String rangeHeader,
+                            HttpServletResponse response) {
+
+        boolean isCompressed = false;
+        endpointService.getEndpointNode(queryId, callId).map(
+                endpointCallNode -> {
+                    String contentEncoding = endpointCallNode.getData().getContentEncoding()
+                            .stream().collect(Collectors.joining(","));
+                    if(!contentEncoding.isEmpty()) {
+                        response.addHeader(HttpHeaders.CONTENT_ENCODING.toString(), contentEncoding);
+                        if(contentEncoding.toLowerCase().contains("gzip")) {
+                            isCompressed = true;
+                        }
+                    }
+
+                    String contentType = endpointCallNode.getData().getContentType()
+                            .stream().collect(Collectors.joining(","));
+                    if(!contentType.isEmpty()) {
+                        response.addHeader(HttpHeaders.CONTENT_TYPE.toString(), contentType);
+                    }
+                    return null;
+                }
+        );
+
         FileId fileId = new FileId(RESPONSE, Long.valueOf(queryId), Long.valueOf(callId));
-        return endpointService.getFile(fileId);
+
+        if (rangeHeader != null) {
+            String[] ranges = rangeHeader.split("=")[1].split("-");
+            int start = Integer.parseInt(ranges[0]);
+            int end = Integer.parseInt(ranges[1]);
+
+            // Set response headers for partial content
+            response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
+            response.setHeader("Accept-Ranges", "bytes");
+
+            // Write the specified byte range to the response
+            try (OutputStream outputStream = response.getOutputStream()) {
+                byte[] content = {};
+                endpointService.getFile(fileId).getInputStream().read(content, start, end - start + 1);
+                outputStream.write(content);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+
+
+        try {
+            response.getOutputStream().write();
+            IOUtils.copy(endpointService.getFile(fileId).getInputStream()., response.getOutputStream());
+        } catch (IOException e) {
+            throw new SparqlDebugException("Unable to red endpoint response body stream.", e);
+        }
     }
+
+    private byte[] compress(final String str) throws IOException {
+        if ((str == null) || (str.length() == 0)) {
+            return null;
+        }
+        ByteArrayOutputStream obj = new ByteArrayOutputStream();
+        GZIPOutputStream gzip = new GZIPOutputStream(obj);
+        gzip.write(str.getBytes("UTF-8"));
+        gzip.flush();
+        gzip.close();
+        return obj.toByteArray();
+    }
+
+    public static byte[] decompress(final byte[] compressed) throws IOException {
+        if ((compressed == null) || (compressed.length == 0)) {
+            return new byte[] {};
+        }
+        final GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(compressed));
+
+        return gis.readAllBytes();
+    }
+
+
 
     private Long executeQuery(String endpoint) {
         URI endpointUri;

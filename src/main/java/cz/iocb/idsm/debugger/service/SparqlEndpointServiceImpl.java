@@ -2,6 +2,7 @@ package cz.iocb.idsm.debugger.service;
 
 import cz.iocb.idsm.debugger.model.*;
 import cz.iocb.idsm.debugger.util.HttpUtil;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,9 +11,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -23,6 +22,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPOutputStream;
 
 import cz.iocb.idsm.debugger.model.Tree.Node;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -166,8 +166,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     }
 
     private void processResponse(HttpResponse<byte[]> response, EndpointCall endpointCall, Node<EndpointCall> endpointCallNode, Long queryId) {
-        String body = new String(response.body(), StandardCharsets.UTF_8);
-        saveResponse(body, queryId, endpointCall.getNodeId());
+
+        saveResponse(response.body(), queryId, endpointCall.getNodeId());
 
         if(response.statusCode() >= 200 && response.statusCode() < 300) {
             endpointCall.setState(EndpointNodeState.SUCCESS);
@@ -177,6 +177,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
         endpointCall.setHttpStatus(response.statusCode());
         endpointCall.setDuration(System.currentTimeMillis() - endpointCall.getStartTime());
+
+        endpointCall.setContentType(response.headers().allValues(HttpHeaderNames.CONTENT_TYPE.toString()));
+        endpointCall.setContentEncoding(response.headers().allValues(HttpHeaderNames.CONTENT_ENCODING.toString()));
 
         endpointCallNode.updateNode();
     }
@@ -352,19 +355,14 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
                 .collect(Collectors.joining("&"));
     }
 
-    private void saveResponse(String responseBody, Long queryId, Long nodeId) {
+    private void saveResponse(byte[] responseBody, Long queryId, Long nodeId) {
         FileId fileId = new FileId(RESPONSE, queryId, nodeId);
-        try {
-            File tempFile = new File(fileId.getPath());
-            tempFile.deleteOnExit();
 
-            FileWriter fileWriter = new FileWriter(tempFile);
-            fileWriter.write(HttpUtil.prettyPrintResponse(responseBody));
-            fileWriter.close();
+        try (FileOutputStream output = new FileOutputStream(fileId.getPath())) {;
+            output.write(responseBody);
         } catch (IOException e) {
             throw new SparqlDebugException("Unable to write request to file.", e);
         }
-
     }
 
     @Override

@@ -2,6 +2,8 @@ package cz.iocb.idsm.debugger.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -16,6 +18,8 @@ public class EndpointCall {
     private String endpoint;
     private Long serviceCallId;
     private AtomicReference<Thread> callThread;
+    private List<String> contentEncoding;
+    private List<String> contentType;
 
     private Integer httpStatus;
     private EndpointNodeState state = EndpointNodeState.NONE;
@@ -28,6 +32,9 @@ public class EndpointCall {
         this.endpoint = endpoint;
         this.serviceCallId = serviceCallId;
         this.callThread = new AtomicReference<>(null);
+
+        this.contentEncoding = new ArrayList<>();
+        this.contentType = new ArrayList<>();
     }
 
     public Long getQueryId() {
@@ -114,6 +121,22 @@ public class EndpointCall {
 
     public void setServiceCallId(Long serviceCallId) {
         this.serviceCallId = serviceCallId;
+    }
+
+    public List<String> getContentEncoding() {
+        return contentEncoding;
+    }
+
+    public void setContentEncoding(List<String> contentEncoding) {
+        this.contentEncoding = contentEncoding;
+    }
+
+    public List<String> getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(List<String> contentType) {
+        this.contentType = contentType;
     }
 
     @JsonIgnore
