@@ -1,25 +1,20 @@
 package cz.iocb.idsm.debugger.controller;
 
 import cz.iocb.idsm.debugger.model.*;
+import cz.iocb.idsm.debugger.model.Tree.Node;
 import cz.iocb.idsm.debugger.service.SparqlEndpointService;
 import cz.iocb.idsm.debugger.service.SparqlQueryService;
-import cz.iocb.idsm.debugger.model.Tree.Node;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.*;
-import java.lang.reflect.Array;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
@@ -56,22 +51,22 @@ public class DebuggerController {
 
     @PostMapping("/service/query/{queryId}/parent/{parentEndpointNodeId}/subquery/{subqueryId}/serviceCall/{serviceCallId}/endpoint/{endpointId}")
     public void debugServicePost(@RequestHeader Map<String, String> headerMap,
-                             @PathVariable Long endpointId,
-                             @PathVariable Long queryId,
-                             @PathVariable Long parentEndpointNodeId,
-                             @PathVariable Long subqueryId,
-                             @PathVariable Long serviceCallId,
-                             @RequestParam(name = PARAM_QUERY, required = false) String query,
-                             @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
-                             @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
-                             @RequestBody(required = false) String body,
+                                 @PathVariable Long endpointId,
+                                 @PathVariable Long queryId,
+                                 @PathVariable Long parentEndpointNodeId,
+                                 @PathVariable Long subqueryId,
+                                 @PathVariable Long serviceCallId,
+                                 @RequestParam(name = PARAM_QUERY, required = false) String query,
+                                 @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
+                                 @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
+                                 @RequestBody(required = false) String body,
                                  HttpServletResponse response
-                             ) {
+    ) {
 
         SparqlRequestType sparqlRequestType = getRequestType(headerMap.get(HEADER_CONTENT_TYPE));
 
         sparqlRequest.setType(sparqlRequestType);
-        if(sparqlRequestType.equals(SparqlRequestType.POST_FORM)) {
+        if (sparqlRequestType.equals(SparqlRequestType.POST_FORM)) {
             sparqlRequest.setQuery(query);
         } else {
             sparqlRequest.setQuery(body);
@@ -87,14 +82,14 @@ public class DebuggerController {
 
     @GetMapping("/service/query/{queryId}/parent/{parentEndpointNodeId}/subquery/{subqueryId}/serviceCall/{serviceCallId}/endpoint/{endpointId}")
     public void debugServiceGet(@RequestHeader Map<String, String> headerMap,
-                                                  @PathVariable Long endpointId,
-                                                  @PathVariable Long queryId,
-                                                  @PathVariable Long parentEndpointNodeId,
-                                                  @PathVariable Long subqueryId,
-                                                  @PathVariable Long serviceCallId,
-                                                  @RequestParam(name = PARAM_QUERY, required = false) String query,
-                                                  @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
-                                                  @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
+                                @PathVariable Long endpointId,
+                                @PathVariable Long queryId,
+                                @PathVariable Long parentEndpointNodeId,
+                                @PathVariable Long subqueryId,
+                                @PathVariable Long serviceCallId,
+                                @RequestParam(name = PARAM_QUERY, required = false) String query,
+                                @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
+                                @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
                                 HttpServletResponse response
     ) {
 
@@ -110,7 +105,7 @@ public class DebuggerController {
     }
 
     private void createResponse(HttpResponse<byte[]> httpResponse, HttpServletResponse response) {
-        if(httpResponse == null) {
+        if (httpResponse == null) {
             return;
         }
 
@@ -146,10 +141,10 @@ public class DebuggerController {
 
     @GetMapping("/query")
     public SseEmitter debugQueryGet(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
-                               @RequestParam(name = PARAM_QUERY) String query,
-                               @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
-                               @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri
-                               ) {
+                                    @RequestParam(name = PARAM_QUERY) String query,
+                                    @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
+                                    @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri
+    ) {
 
         sparqlRequest.setType(SparqlRequestType.POST_FORM);
         sparqlRequest.setQuery(query);
@@ -172,10 +167,10 @@ public class DebuggerController {
 
     @PostMapping("/query")
     public SseEmitter debugQueryPost(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
-                              @RequestParam(name = PARAM_QUERY, required = false) String query,
-                              @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
-                              @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
-                              @RequestBody(required = false) String body
+                                     @RequestParam(name = PARAM_QUERY, required = false) String query,
+                                     @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
+                                     @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
+                                     @RequestBody(required = false) String body
     ) {
 
         logger.debug("debugQueryGet - start: headerMap: {}", Arrays.toString(headerMap.keySet().toArray()));
@@ -183,7 +178,7 @@ public class DebuggerController {
         SparqlRequestType sparqlRequestType = getRequestType(headerMap.get(HEADER_CONTENT_TYPE));
 
         sparqlRequest.setType(getRequestType(headerMap.get(HEADER_CONTENT_TYPE)));
-        if(sparqlRequestType.equals(SparqlRequestType.POST_FORM)) {
+        if (sparqlRequestType.equals(SparqlRequestType.POST_FORM)) {
             sparqlRequest.setQuery(query);
         } else {
             sparqlRequest.setQuery(body);
@@ -206,7 +201,7 @@ public class DebuggerController {
 
     @GetMapping("/query/{queryId}")
     public Tree<EndpointCall> getQueryInfo(@PathVariable Long queryId) {
-        if(endpointService.getQueryTree(queryId).isEmpty()) {
+        if (endpointService.getQueryTree(queryId).isEmpty()) {
             logger.error("Query doesn't exist. queryId={}", queryId);
             throw new SparqlDebugException(format("Query doesn't exist. queryId=%d", queryId));
         }
@@ -226,57 +221,85 @@ public class DebuggerController {
                             @RequestHeader(value = "Range", required = false) String rangeHeader,
                             HttpServletResponse response) {
 
-        boolean isCompressed = false;
-        endpointService.getEndpointNode(queryId, callId).map(
-                endpointCallNode -> {
-                    String contentEncoding = endpointCallNode.getData().getContentEncoding()
-                            .stream().collect(Collectors.joining(","));
-                    if(!contentEncoding.isEmpty()) {
-                        response.addHeader(HttpHeaders.CONTENT_ENCODING.toString(), contentEncoding);
-                        if(contentEncoding.toLowerCase().contains("gzip")) {
-                            isCompressed = true;
-                        }
-                    }
-
-                    String contentType = endpointCallNode.getData().getContentType()
-                            .stream().collect(Collectors.joining(","));
-                    if(!contentType.isEmpty()) {
-                        response.addHeader(HttpHeaders.CONTENT_TYPE.toString(), contentType);
-                    }
-                    return null;
-                }
-        );
-
         FileId fileId = new FileId(RESPONSE, Long.valueOf(queryId), Long.valueOf(callId));
 
-        if (rangeHeader != null) {
-            String[] ranges = rangeHeader.split("=")[1].split("-");
-            int start = Integer.parseInt(ranges[0]);
-            int end = Integer.parseInt(ranges[1]);
+        EndpointCall endpointCall = endpointService.getEndpointNode(queryId, callId).get().getData();
+        Boolean isCompressed = endpointCall.getContentEncoding().stream()
+                .filter(value -> value.equalsIgnoreCase("gzip"))
+                .findAny()
+                .map(value -> true)
+                .orElse(false);
 
-            // Set response headers for partial content
-            response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
-            response.setHeader("Accept-Ranges", "bytes");
+        try {
+            if (rangeHeader != null) {
+                String[] ranges = rangeHeader.split("=")[1].split("-");
+                int start = Integer.parseInt(ranges[0]);
+                int end = Integer.parseInt(ranges[1]);
 
-            // Write the specified byte range to the response
-            try (OutputStream outputStream = response.getOutputStream()) {
-                byte[] content = {};
-                endpointService.getFile(fileId).getInputStream().read(content, start, end - start + 1);
-                outputStream.write(content);
-            } catch (Exception e) {
-                e.printStackTrace();
+                response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
+                response.setHeader("Accept-Ranges", "bytes");
+
+                String rangeContent = readNBytesFromFile(endpointService.getFile(fileId).getInputStream(), start, end, isCompressed);
+
+                response.getOutputStream().write(rangeContent.getBytes(StandardCharsets.UTF_8));
+
+                return;
+            }
+
+            endpointService.getEndpointNode(queryId, callId).map(
+                    endpointCallNode -> {
+                        String contentEncoding = endpointCallNode.getData().getContentEncoding()
+                                .stream().collect(Collectors.joining(","));
+                        if (!contentEncoding.isEmpty()) {
+                            response.addHeader(HttpHeaders.CONTENT_ENCODING, contentEncoding);
+                        }
+
+                        String contentType = endpointCallNode.getData().getContentType()
+                                .stream().collect(Collectors.joining(","));
+                        if (!contentType.isEmpty()) {
+                            response.addHeader(HttpHeaders.CONTENT_TYPE, contentType);
+                        }
+                        return null;
+                    }
+            );
+
+            IOUtils.copy(endpointService.getFile(fileId).getInputStream(), response.getOutputStream());
+
+        } catch (IOException e) {
+            throw new SparqlDebugException("Unable to create endpoint response body.", e);
+        }
+    }
+
+    private String readNBytesFromFile(InputStream inputStream, int begin, int end, Boolean isCompressed) {
+        InputStream finalInputStream = new BufferedInputStream(inputStream);
+        if (isCompressed) {
+            try {
+                finalInputStream = new GZIPInputStream(finalInputStream);
+            } catch (IOException e) {
+                throw new SparqlDebugException("Unable to read input stream.", e);
             }
         }
 
-
-
-        try {
-            response.getOutputStream().write();
-            IOUtils.copy(endpointService.getFile(fileId).getInputStream()., response.getOutputStream());
-        } catch (IOException e) {
-            throw new SparqlDebugException("Unable to red endpoint response body stream.", e);
-        }
+        return readNBytesImpl(finalInputStream, begin, end);
     }
+
+    private String readNBytesImpl(InputStream inputStream, int begin, int end) {
+        try (inputStream) {
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            byte[] buffer = new byte[end - begin + 1];
+            int bytesRead = inputStream.read(buffer, begin, end);
+
+            if (bytesRead != -1) {
+                byteArrayOutputStream.write(buffer, 0, bytesRead);
+            }
+
+            return byteArrayOutputStream.toString("UTF-8");
+        } catch (IOException e) {
+            throw new SparqlDebugException("Unable to read input stream.", e);
+        }
+
+    }
+
 
     private byte[] compress(final String str) throws IOException {
         if ((str == null) || (str.length() == 0)) {
@@ -292,13 +315,12 @@ public class DebuggerController {
 
     public static byte[] decompress(final byte[] compressed) throws IOException {
         if ((compressed == null) || (compressed.length == 0)) {
-            return new byte[] {};
+            return new byte[]{};
         }
         final GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(compressed));
 
         return gis.readAllBytes();
     }
-
 
 
     private Long executeQuery(String endpoint) {
@@ -316,7 +338,6 @@ public class DebuggerController {
 
         return endpointRoot.getData().getQueryId();
     }
-
 
 
     private HttpResponse<byte[]> executeService(Long endpointId, Long queryId, Long parentEndpointNodeId, Long subqueryId, Long serviceCallId) {
@@ -344,11 +365,11 @@ public class DebuggerController {
     }
 
     private SparqlRequestType getRequestType(String contentType) {
-        if(contentType == null) {
+        if (contentType == null) {
             throw new SparqlDebugException("Missing request header: content-type");
         } else {
             SparqlRequestType sparqlRequestType = SparqlRequestType.valueOfContentType(contentType);
-            if(sparqlRequestType == null) {
+            if (sparqlRequestType == null) {
                 throw new SparqlDebugException("content-type request header has wrong value");
             }
 

@@ -29,6 +29,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.REQUEST;
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.RESPONSE;
+import static java.lang.String.format;
 
 
 @Service
@@ -225,6 +226,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     @Override
     public FileSystemResource getFile(FileId fileId) {
         FileSystemResource result = new FileSystemResource(fileId.getPath());
+
         return result;
     }
 
