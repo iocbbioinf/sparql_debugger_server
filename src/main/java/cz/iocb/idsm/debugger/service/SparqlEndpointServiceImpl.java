@@ -191,7 +191,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
         httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
                 .thenAccept(resp -> {
-                    endpointCall.getCallThread().set(Thread.currentThread());
+//                    endpointCall.getCallThread().set(Thread.currentThread());
                     processResponse(resp, endpointCall, endpointCallNode, queryId);
                     endpointCall.getCallThread().set(null);
                 })

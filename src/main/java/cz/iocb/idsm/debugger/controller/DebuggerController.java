@@ -230,6 +230,8 @@ public class DebuggerController {
                 .map(value -> true)
                 .orElse(false);
 
+        response.addHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, String.join(",", HttpHeaders.CONTENT_LENGTH.toLowerCase()));
+
         try {
             if (rangeHeader != null) {
                 String[] ranges = rangeHeader.split("=")[1].split("-");
