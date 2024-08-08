@@ -1,5 +1,8 @@
 package cz.iocb.idsm.debugger.service;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import cz.iocb.idsm.debugger.model.*;
 import cz.iocb.idsm.debugger.util.HttpUtil;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -26,6 +29,13 @@ import java.util.zip.GZIPOutputStream;
 
 import cz.iocb.idsm.debugger.model.Tree.Node;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.xml.sax.Attributes;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
+
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
 
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.REQUEST;
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.RESPONSE;
@@ -168,8 +178,6 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     private void processResponse(HttpResponse<byte[]> response, EndpointCall endpointCall, Node<EndpointCall> endpointCallNode, Long queryId) {
 
-        saveResponse(response.body(), queryId, endpointCall.getNodeId());
-
         if(response.statusCode() >= 200 && response.statusCode() < 300) {
             endpointCall.setState(EndpointNodeState.SUCCESS);
         } else {
@@ -177,12 +185,31 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         }
 
         endpointCall.setHttpStatus(response.statusCode());
-        endpointCall.setDuration(System.currentTimeMillis() - endpointCall.getStartTime());
+        endpointCall.setEndTime(System.currentTimeMillis());
 
         endpointCall.setContentType(response.headers().allValues(HttpHeaderNames.CONTENT_TYPE.toString()));
         endpointCall.setContentEncoding(response.headers().allValues(HttpHeaderNames.CONTENT_ENCODING.toString()));
 
+        SparqlResultType resultType = getResultType(endpointCall.getContentType());
+        Long resultsCount = getResultCount(new ByteArrayInputStream(response.body()), resultType);
+        endpointCall.setResultsCount(resultsCount);
+
+        saveResponse(response.body(), queryId, endpointCall.getNodeId());
+
         endpointCallNode.updateNode();
+    }
+
+    private SparqlResultType getResultType(List<String> contentType) {
+        String contentTypes = contentType.stream().collect(Collectors.joining(";"));
+
+        if(contentTypes.toLowerCase().contains(SparqlResultType.XML.contentType)){
+            return SparqlResultType.XML;
+        }
+        if(contentTypes.toLowerCase().contains(SparqlResultType.JSON.contentType)){
+            return SparqlResultType.JSON;
+        }
+
+        return null;
     }
 
     @Override
@@ -381,5 +408,61 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         logger.debug("Number of deleted queries = {} ", queriesToDelete.size());
     }
 
+    @Override
+    public Long getResultCount(InputStream resultStream, SparqlResultType resultType) {
+        if(resultType == null) {
+            return null;
+        }
 
+        try {
+            if (resultType == SparqlResultType.JSON) {
+                return countJsonResults(resultStream);
+            } else if (resultType == SparqlResultType.XML) {
+                return countXmlResults(resultStream);
+            }
+        } catch (Exception e) {
+            throw new SparqlDebugException("unable to process results", e);
+        }
+
+        return null;
+    }
+
+
+    private Long countJsonResults(InputStream inputStream) throws Exception {
+        JsonFactory factory = new JsonFactory();
+        JsonParser parser = factory.createParser(inputStream);
+        Long count = 0L;
+
+        while (!parser.isClosed()) {
+            JsonToken token = parser.nextToken();
+            if (JsonToken.FIELD_NAME.equals(token) && "result".equals(parser.getCurrentName())) {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private Long countXmlResults(InputStream inputStream) throws Exception {
+        SAXParserFactory factory = SAXParserFactory.newInstance();
+        SAXParser saxParser = factory.newSAXParser();
+        ResultCountingHandler handler = new ResultCountingHandler();
+        saxParser.parse(new InputSource(inputStream), handler);
+        return handler.getCount();
+    }
+
+    private static class ResultCountingHandler extends DefaultHandler {
+        private Long count = 0L;
+
+        public Long getCount() {
+            return count;
+        }
+
+        @Override
+        public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
+            if ("result".equals(qName)) {
+                count++;
+            }
+        }
+    }
 }
