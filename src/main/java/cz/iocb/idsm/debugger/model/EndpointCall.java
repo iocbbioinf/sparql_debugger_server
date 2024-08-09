@@ -20,6 +20,7 @@ public class EndpointCall {
     private AtomicReference<Thread> callThread;
     private List<String> contentEncoding;
     private List<String> contentType;
+    private String resultType;
 
     private Integer httpStatus;
     private EndpointNodeState state = EndpointNodeState.NONE;
@@ -146,6 +147,14 @@ public class EndpointCall {
 
     public void setResultsCount(Long resultsCount) {
         this.resultsCount = resultsCount;
+    }
+
+    public String getResultType() {
+        return resultType;
+    }
+
+    public void setResultType(String resultType) {
+        this.resultType = resultType;
     }
 
     @JsonIgnore

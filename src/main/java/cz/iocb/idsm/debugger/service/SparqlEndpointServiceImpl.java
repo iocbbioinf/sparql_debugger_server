@@ -191,6 +191,10 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         endpointCall.setContentEncoding(response.headers().allValues(HttpHeaderNames.CONTENT_ENCODING.toString()));
 
         SparqlResultType resultType = getResultType(endpointCall.getContentType());
+        if(resultType != null) {
+            endpointCall.setResultType(resultType.contentType);
+        }
+
         Long resultsCount = getResultCount(new ByteArrayInputStream(response.body()), resultType);
         endpointCall.setResultsCount(resultsCount);
 
@@ -208,6 +212,13 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         if(contentTypes.toLowerCase().contains(SparqlResultType.JSON.contentType)){
             return SparqlResultType.JSON;
         }
+        if(contentTypes.toLowerCase().contains(SparqlResultType.CSV.contentType)){
+            return SparqlResultType.CSV;
+        }
+        if(contentTypes.toLowerCase().contains(SparqlResultType.HTML.contentType)){
+            return SparqlResultType.HTML;
+        }
+
 
         return null;
     }
@@ -419,6 +430,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
                 return countJsonResults(resultStream);
             } else if (resultType == SparqlResultType.XML) {
                 return countXmlResults(resultStream);
+            } else if (resultType == SparqlResultType.CSV) {
+                return countCsvResults(resultStream);
             }
         } catch (Exception e) {
             throw new SparqlDebugException("unable to process results", e);
@@ -450,6 +463,18 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         saxParser.parse(new InputSource(inputStream), handler);
         return handler.getCount();
     }
+
+    private Long countCsvResults(InputStream inputStream) throws Exception {
+        Long count = 0L;
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+
+        while ((reader.readLine()) != null) {
+            count++;
+        }
+
+        return count - 1;
+    }
+
 
     private static class ResultCountingHandler extends DefaultHandler {
         private Long count = 0L;
