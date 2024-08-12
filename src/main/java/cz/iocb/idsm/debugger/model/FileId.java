@@ -33,6 +33,18 @@ public class FileId {
         return (fileName.startsWith(prefixReq) || fileName.startsWith(prefixResp));
     }
 
+    public FILE_TYPE getFileType() {
+        return fileType;
+    }
+
+    public Long getQueryId() {
+        return queryId;
+    }
+
+    public Long getCallId() {
+        return callId;
+    }
+
     public enum FILE_TYPE {
         REQUEST, RESPONSE
     }

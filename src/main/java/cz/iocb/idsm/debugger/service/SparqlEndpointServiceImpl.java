@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
 import cz.iocb.idsm.debugger.model.Tree.Node;
+import org.springframework.web.context.annotation.SessionScope;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
@@ -56,12 +57,14 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     private static final Logger logger = LoggerFactory.getLogger(SparqlEndpointServiceImpl.class);
 
-    private Map<Long, Tree<EndpointCall>> queryExecutionMap = new ConcurrentHashMap<>();
-    private AtomicLong queryCounter = new AtomicLong(0);
-    private AtomicLong endpointCallCounter = new AtomicLong(0);
+    private final Map<Long, Tree<EndpointCall>> queryExecutionMap = new ConcurrentHashMap<>();
+    private final AtomicLong queryCounter = new AtomicLong(0);
+    private final AtomicLong endpointCallCounter = new AtomicLong(0);
 
-    private Set<Long> cancellingQuerySet = Collections.synchronizedSet(new HashSet<>());
+    private final Set<Long> cancellingQuerySet = Collections.synchronizedSet(new HashSet<>());
 
+    @Autowired
+    private SessionScopeList sessionQueryList;
 
     @Override
     public Node<EndpointCall> createServiceEndpointNode(String endpoint, Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode, Long serviceCallId) {
@@ -98,6 +101,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
         queryExecutionMap.put(queryId, endpointTree);
 
+        sessionQueryList.add(queryId);
+
         logger.debug("createQueryEndpointRoot - end. queryId={}", queryId);
 
         return endpointTree.getRoot();
@@ -105,6 +110,10 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     @Override
     public Optional<Tree<EndpointCall>> getQueryTree(Long queryId) {
+        if(!queryIsInSession(queryId)) {
+            throw new SparqlDebugException("Query is not in current Web Session.");
+        }
+
         Tree<EndpointCall> queryTree = queryExecutionMap.get(queryId);
 
         if(queryTree == null) {
@@ -263,9 +272,17 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     @Override
     public FileSystemResource getFile(FileId fileId) {
+        if(!queryIsInSession(fileId.getQueryId())) {
+            throw new SparqlDebugException("Query is not in current Web Session.");
+        }
+
         FileSystemResource result = new FileSystemResource(fileId.getPath());
 
         return result;
+    }
+
+    private Boolean queryIsInSession(Long queryId) {
+        return sessionQueryList.contains(queryId);
     }
 
     private HttpRequest createHttpRequest(URI endpoint, String query) {
@@ -332,6 +349,10 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     @Override
     public void cancelQuery(Long queryId) {
+        if(!queryIsInSession(queryId)) {
+            throw new SparqlDebugException("Query is not in current Web Session.");
+        }
+
         cancellingQuerySet.add(queryId);
         Tree<EndpointCall> callTree = queryExecutionMap.get(queryId);
         cancelCallTreeThreads(callTree.getRoot());
@@ -339,6 +360,10 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     @Override
     public void deleteQuery(Long queryId) {
+        if(!queryIsInSession(queryId)) {
+            throw new SparqlDebugException("Query is not in current Web Session.");
+        }
+
         queryExecutionMap.remove(queryId);
         sparqlQueryService.deleteQuery(queryId);
         deleteReqRespFiles(queryId);

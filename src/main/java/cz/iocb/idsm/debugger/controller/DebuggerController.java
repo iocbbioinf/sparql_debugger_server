@@ -166,7 +166,7 @@ public class DebuggerController {
     }
 
     @PostMapping("/query")
-    public SseEmitter debugQueryPost(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
+    public Long debugQueryPost(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
                                      @RequestParam(name = PARAM_QUERY, required = false) String query,
                                      @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
                                      @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
@@ -195,8 +195,19 @@ public class DebuggerController {
 
         Long queryId = executeQuery(endpoint);
 
+        return queryId;
+    }
+
+    @PostMapping("/query/{queryId}/sse")
+    public SseEmitter startSse(@PathVariable Long queryId) {
+        if (endpointService.getQueryTree(queryId).isEmpty()) {
+            logger.error("Query doesn't exist. queryId={}", queryId);
+            throw new SparqlDebugException(format("Query doesn't exist. queryId=%d", queryId));
+        }
+
         return endpointService.getQueryTree(queryId).get().getEmitter();
     }
+
 
 
     @GetMapping("/query/{queryId}")
@@ -212,6 +223,8 @@ public class DebuggerController {
 
     @GetMapping("/query/{queryId}/call/{callId}/request")
     public org.springframework.core.io.Resource getRequest(@PathVariable Long queryId, @PathVariable Long callId) {
+
+
         FileId fileId = new FileId(REQUEST, Long.valueOf(queryId), Long.valueOf(callId));
         return endpointService.getFile(fileId);
     }
