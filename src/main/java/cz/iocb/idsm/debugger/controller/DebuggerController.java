@@ -198,7 +198,7 @@ public class DebuggerController {
         return queryId;
     }
 
-    @PostMapping("/query/{queryId}/sse")
+    @GetMapping("/query/{queryId}/sse")
     public SseEmitter startSse(@PathVariable Long queryId) {
         if (endpointService.getQueryTree(queryId).isEmpty()) {
             logger.error("Query doesn't exist. queryId={}", queryId);
