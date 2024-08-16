@@ -13,6 +13,7 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.Flow;
 import java.util.zip.GZIPInputStream;
 
@@ -147,6 +148,13 @@ public class HttpUtil {
         }
     }
 
+    public static Boolean isCompressed(List<String> contentEncoding) {
+        return contentEncoding.stream()
+                .filter(value -> value.equalsIgnoreCase("gzip"))
+                .findAny()
+                .map(value -> true)
+                .orElse(false);
+    }
 
 
 }

@@ -237,11 +237,7 @@ public class DebuggerController {
         FileId fileId = new FileId(RESPONSE, Long.valueOf(queryId), Long.valueOf(callId));
 
         EndpointCall endpointCall = endpointService.getEndpointNode(queryId, callId).get().getData();
-        Boolean isCompressed = endpointCall.getContentEncoding().stream()
-                .filter(value -> value.equalsIgnoreCase("gzip"))
-                .findAny()
-                .map(value -> true)
-                .orElse(false);
+        Boolean isCompressed = isCompressed(endpointCall.getContentEncoding());
 
         response.addHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, String.join(",", HttpHeaders.CONTENT_LENGTH.toLowerCase()));
 

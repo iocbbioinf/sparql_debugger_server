@@ -27,6 +27,8 @@ public class EndpointCall {
 
     private Long resultsCount;
 
+    private String charset;
+
     public EndpointCall(Long queryId, Long nodeId, Tree.Node<SparqlQueryInfo> queryNode, Long parentNodeId, String endpoint, Long serviceCallId) {
         this.queryId = queryId;
         this.nodeId = nodeId;
@@ -160,6 +162,15 @@ public class EndpointCall {
     @JsonIgnore
     public AtomicReference<Thread> getCallThread() {
         return callThread;
+    }
+
+    @JsonIgnore
+    public String getCharset() {
+        return charset;
+    }
+
+    public void setCharset(String charset) {
+        this.charset = charset;
     }
 
     @Override

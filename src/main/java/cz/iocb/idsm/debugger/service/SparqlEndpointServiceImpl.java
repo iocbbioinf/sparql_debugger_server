@@ -3,7 +3,10 @@ package cz.iocb.idsm.debugger.service;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.ibm.icu.text.CharsetDetector;
+import com.ibm.icu.text.CharsetMatch;
 import cz.iocb.idsm.debugger.model.*;
+import cz.iocb.idsm.debugger.model.Tree.Node;
 import cz.iocb.idsm.debugger.util.HttpUtil;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import jakarta.annotation.Resource;
@@ -13,22 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
-
-import java.io.*;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-import java.util.zip.GZIPOutputStream;
-
-import cz.iocb.idsm.debugger.model.Tree.Node;
-import org.springframework.web.context.annotation.SessionScope;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
@@ -37,10 +24,24 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
+import java.io.*;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.REQUEST;
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.RESPONSE;
-import static java.lang.String.format;
+import static cz.iocb.idsm.debugger.util.HttpUtil.isCompressed;
 
 
 @Service
@@ -204,13 +205,45 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             endpointCall.setResultType(resultType.contentType);
         }
 
-        Long resultsCount = getResultCount(new ByteArrayInputStream(response.body()), resultType);
+        endpointCall.setCharset(getRespCharset(SparqlResultType.valueOf(endpointCall.getResultType()), endpointCall.getContentEncoding(), response.body()));
+
+        InputStream inputStream = new ByteArrayInputStream(response.body());
+        if(isCompressed(endpointCall.getContentEncoding())){
+            inputStream = new GZIPInputStream(inputStream);
+        }
+        Long resultsCount = getResultCount(inputStream, resultType);
+
         endpointCall.setResultsCount(resultsCount);
 
         saveResponse(response.body(), queryId, endpointCall.getNodeId());
 
         endpointCallNode.updateNode();
     }
+
+    private String getRespCharset(SparqlResultType resultType, List<String> contentEncoding, byte[] responseBody) {
+        try {
+            InputStream inputStream = new ByteArrayInputStream(responseBody);
+
+            if(isCompressed(contentEncoding)) {
+                inputStream = new GZIPInputStream(inputStream);
+            }
+
+            if(resultType == SparqlResultType.XML) {
+                CharsetDetector detector = new CharsetDetector();
+                // Read all bytes from the file into a byte array
+                detector.setText(inputStream);
+                CharsetMatch charsetMatch = detector.detect();
+                return charsetMatch.getName();
+            }
+
+            return StandardCharsets.UTF_8.displayName();
+        } catch (Exception e) {
+            logger.error("Unable to get charset", e);
+        }
+
+        return null;
+    }
+
 
     private SparqlResultType getResultType(List<String> contentType) {
         String contentTypes = contentType.stream().collect(Collectors.joining(";"));
@@ -423,8 +456,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     private void saveResponse(byte[] responseBody, Long queryId, Long nodeId) {
         FileId fileId = new FileId(RESPONSE, queryId, nodeId);
 
-        try (FileOutputStream output = new FileOutputStream(fileId.getPath())) {;
-            output.write(responseBody);
+        try (Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileId.getPath()), StandardCharsets.UTF_8))) {
+            writer.write(new String(responseBody, StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new SparqlDebugException("Unable to write request to file.", e);
         }
@@ -445,21 +478,27 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     }
 
     @Override
-    public Long getResultCount(InputStream resultStream, SparqlResultType resultType) {
+    public Long getResultCount(InputStream resultStream, SparqlResultType resultType, List<String> contentEncoding) {
         if(resultType == null) {
             return null;
         }
 
         try {
+            InputStream inputStream = resultStream;
+
+            if(isCompressed(contentEncoding)){
+                inputStream = new GZIPInputStream(inputStream);
+            }
+
             if (resultType == SparqlResultType.JSON) {
-                return countJsonResults(resultStream);
+                return countJsonResults(inputStream);
             } else if (resultType == SparqlResultType.XML) {
-                return countXmlResults(resultStream);
+                return countXmlResults(inputStream);
             } else if (resultType == SparqlResultType.CSV) {
-                return countCsvResults(resultStream);
+                return countCsvResults(inputStream);
             }
         } catch (Exception e) {
-            throw new SparqlDebugException("unable to process results", e);
+            logger.error("unable to process results", e);
         }
 
         return null;
@@ -482,10 +521,27 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     }
 
     private Long countXmlResults(InputStream inputStream) throws Exception {
+        /*
+        EncodingDetector encodingDetector =  new UniversalEncodingDetector();
+
+        Charset detectedCharset = encodingDetector.detect(inputStream, new Metadata());
+
         SAXParserFactory factory = SAXParserFactory.newInstance();
         SAXParser saxParser = factory.newSAXParser();
         ResultCountingHandler handler = new ResultCountingHandler();
-        saxParser.parse(new InputSource(inputStream), handler);
+        saxParser.parse(new InputSource(new InputStreamReader(inputStream, detectedCharset)), handler);
+        */
+
+        CharsetDetector detector = new CharsetDetector();
+        // Read all bytes from the file into a byte array
+        detector.setText(inputStream);
+        CharsetMatch charsetMatch = detector.detect();
+
+        SAXParserFactory factory = SAXParserFactory.newInstance();
+        SAXParser saxParser = factory.newSAXParser();
+        ResultCountingHandler handler = new ResultCountingHandler();
+        saxParser.parse(new InputSource(new InputStreamReader(inputStream, charsetMatch.getName())), handler);
+
         return handler.getCount();
     }
 
@@ -498,6 +554,28 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         }
 
         return count - 1;
+    }
+
+    private InputStream removeBOM(InputStream inputStream) throws IOException {
+        final byte[] bom = new byte[3];
+        inputStream.read(bom);
+        if ((bom[0] == (byte) 0xEF) && (bom[1] == (byte) 0xBB) && (bom[2] == (byte) 0xBF)) {
+            return inputStream;
+        } else {
+            return new SequenceInputStream(new ByteArrayInputStream(bom), inputStream);
+        }
+    }
+
+    private InputStream skipWhitespace(InputStream inputStream) throws IOException {
+        PushbackInputStream pbStream = new PushbackInputStream(inputStream);
+        int b;
+        while ((b = pbStream.read()) != -1) {
+            if (!Character.isWhitespace(b)) {
+                pbStream.unread(b);
+                break;
+            }
+        }
+        return pbStream;
     }
 
 
