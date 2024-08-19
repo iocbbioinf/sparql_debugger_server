@@ -65,7 +65,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     private final Set<Long> cancellingQuerySet = Collections.synchronizedSet(new HashSet<>());
 
     @Autowired
-    private SessionScopeList sessionQueryList;
+    private SessionScopeQueryList sessionQueryList;
 
     @Override
     public Node<EndpointCall> createServiceEndpointNode(String endpoint, Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode, Long serviceCallId) {
@@ -201,21 +201,16 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         endpointCall.setContentEncoding(response.headers().allValues(HttpHeaderNames.CONTENT_ENCODING.toString()));
 
         SparqlResultType resultType = getResultType(endpointCall.getContentType());
-        if(resultType != null) {
-            endpointCall.setResultType(resultType.contentType);
-        }
+        endpointCall.setResultType(resultType.name());
 
         endpointCall.setCharset(getRespCharset(SparqlResultType.valueOf(endpointCall.getResultType()), endpointCall.getContentEncoding(), response.body()));
 
         InputStream inputStream = new ByteArrayInputStream(response.body());
-        if(isCompressed(endpointCall.getContentEncoding())){
-            inputStream = new GZIPInputStream(inputStream);
-        }
-        Long resultsCount = getResultCount(inputStream, resultType);
+        Long resultsCount = getResultCount(inputStream, resultType, endpointCall.getContentEncoding());
 
         endpointCall.setResultsCount(resultsCount);
 
-        saveResponse(response.body(), queryId, endpointCall.getNodeId());
+        saveResponse(response.body(), queryId, endpointCall.getNodeId(), endpointCall.getCharset());
 
         endpointCallNode.updateNode();
     }
@@ -231,7 +226,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             if(resultType == SparqlResultType.XML) {
                 CharsetDetector detector = new CharsetDetector();
                 // Read all bytes from the file into a byte array
-                detector.setText(inputStream);
+                detector.setText(new BufferedInputStream(inputStream));
                 CharsetMatch charsetMatch = detector.detect();
                 return charsetMatch.getName();
             }
@@ -261,8 +256,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             return SparqlResultType.HTML;
         }
 
-
-        return null;
+        return SparqlResultType.OTHER;
     }
 
     @Override
@@ -381,26 +375,21 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     }
 
     @Override
-    public void cancelQuery(Long queryId) {
-        if(!queryIsInSession(queryId)) {
-            throw new SparqlDebugException("Query is not in current Web Session.");
-        }
-
-        cancellingQuerySet.add(queryId);
-        Tree<EndpointCall> callTree = queryExecutionMap.get(queryId);
-        cancelCallTreeThreads(callTree.getRoot());
-    }
-
-    @Override
     public void deleteQuery(Long queryId) {
         if(!queryIsInSession(queryId)) {
             throw new SparqlDebugException("Query is not in current Web Session.");
         }
 
+        cancellingQuerySet.add(queryId);
+
+        Tree<EndpointCall> callTree = queryExecutionMap.get(queryId);
+        cancelCallTreeThreads(callTree.getRoot());
+
         queryExecutionMap.remove(queryId);
+
         sparqlQueryService.deleteQuery(queryId);
+
         deleteReqRespFiles(queryId);
-        cancellingQuerySet.remove(queryId);
     }
 
     private void cancelCallTreeThreads(Node<EndpointCall> node) {
@@ -453,11 +442,11 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
                 .collect(Collectors.joining("&"));
     }
 
-    private void saveResponse(byte[] responseBody, Long queryId, Long nodeId) {
+    private void saveResponse(byte[] responseBody, Long queryId, Long nodeId, String charset) {
         FileId fileId = new FileId(RESPONSE, queryId, nodeId);
 
-        try (Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileId.getPath()), StandardCharsets.UTF_8))) {
-            writer.write(new String(responseBody, StandardCharsets.UTF_8));
+        try (Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileId.getPath()), charset))) {
+            writer.write(new String(responseBody, charset));
         } catch (IOException e) {
             throw new SparqlDebugException("Unable to write request to file.", e);
         }
@@ -479,7 +468,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     @Override
     public Long getResultCount(InputStream resultStream, SparqlResultType resultType, List<String> contentEncoding) {
-        if(resultType == null) {
+        if(resultType == null || resultType == SparqlResultType.OTHER) {
             return null;
         }
 
@@ -489,6 +478,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             if(isCompressed(contentEncoding)){
                 inputStream = new GZIPInputStream(inputStream);
             }
+            inputStream = new BufferedInputStream(inputStream);
 
             if (resultType == SparqlResultType.JSON) {
                 return countJsonResults(inputStream);

@@ -129,11 +129,6 @@ public class DebuggerController {
         }
     }
 
-    @PostMapping("/query/{queryId}/cancel")
-    public void cancelQuery(@PathVariable Long queryId) {
-        endpointService.cancelQuery(queryId);
-    }
-
     @PostMapping("/query/{queryId}/delete")
     public void deleteQuery(@PathVariable Long queryId) {
         endpointService.deleteQuery(queryId);
@@ -250,9 +245,9 @@ public class DebuggerController {
                 response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
                 response.setHeader("Accept-Ranges", "bytes");
 
-                String rangeContent = readNBytesFromFile(endpointService.getFile(fileId).getInputStream(), start, end, isCompressed);
+                String rangeContent = readNBytesFromFile(endpointService.getFile(fileId).getInputStream(), start, end, isCompressed, endpointCall.getCharset());
 
-                response.getOutputStream().write(rangeContent.getBytes(StandardCharsets.UTF_8));
+                response.getOutputStream().write(rangeContent.getBytes(endpointCall.getCharset()));
 
                 return;
             }
@@ -281,7 +276,7 @@ public class DebuggerController {
         }
     }
 
-    private String readNBytesFromFile(InputStream inputStream, int begin, int end, Boolean isCompressed) {
+    private String readNBytesFromFile(InputStream inputStream, int begin, int end, Boolean isCompressed, String charset) {
         InputStream finalInputStream = new BufferedInputStream(inputStream);
         if (isCompressed) {
             try {
@@ -291,10 +286,10 @@ public class DebuggerController {
             }
         }
 
-        return readNBytesImpl(finalInputStream, begin, end);
+        return readNBytesImpl(finalInputStream, begin, end, charset);
     }
 
-    private String readNBytesImpl(InputStream inputStream, int begin, int end) {
+    private String readNBytesImpl(InputStream inputStream, int begin, int end, String charset) {
         try (inputStream) {
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             byte[] buffer = new byte[end - begin + 1];
@@ -304,35 +299,12 @@ public class DebuggerController {
                 byteArrayOutputStream.write(buffer, 0, bytesRead);
             }
 
-            return byteArrayOutputStream.toString("UTF-8");
+            return byteArrayOutputStream.toString(charset);
         } catch (IOException e) {
             throw new SparqlDebugException("Unable to read input stream.", e);
         }
 
     }
-
-
-    private byte[] compress(final String str) throws IOException {
-        if ((str == null) || (str.length() == 0)) {
-            return null;
-        }
-        ByteArrayOutputStream obj = new ByteArrayOutputStream();
-        GZIPOutputStream gzip = new GZIPOutputStream(obj);
-        gzip.write(str.getBytes("UTF-8"));
-        gzip.flush();
-        gzip.close();
-        return obj.toByteArray();
-    }
-
-    public static byte[] decompress(final byte[] compressed) throws IOException {
-        if ((compressed == null) || (compressed.length == 0)) {
-            return new byte[]{};
-        }
-        final GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(compressed));
-
-        return gis.readAllBytes();
-    }
-
 
     private Long executeQuery(String endpoint) {
         URI endpointUri;
@@ -349,7 +321,6 @@ public class DebuggerController {
 
         return endpointRoot.getData().getQueryId();
     }
-
 
     private HttpResponse<byte[]> executeService(Long endpointId, Long queryId, Long parentEndpointNodeId, Long subqueryId, Long serviceCallId) {
         logger.debug("executeService - start: queryId={}, parentEndpointNodeId={}, subqueryId={}, serviceCallId={}, endpointId={}",

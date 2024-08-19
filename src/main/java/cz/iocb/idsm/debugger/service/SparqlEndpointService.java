@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.List;
 import java.util.Optional;
 
 public interface SparqlEndpointService {
@@ -25,9 +26,7 @@ public interface SparqlEndpointService {
 
     FileSystemResource getFile(FileId fileId);
 
-    Long getResultCount(InputStream resultStream, SparqlResultType resultType);
-
-    void cancelQuery(Long queryId);
+    Long getResultCount(InputStream resultStream, SparqlResultType resultType, List<String> contentEncoding);
 
     void deleteQuery(Long queryId);
 

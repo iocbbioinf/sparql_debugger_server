@@ -128,26 +128,6 @@ public class HttpUtil {
         return resultMap;
     }
 
-    public static String decompressGzipString(String compressedStr) {
-        byte[] compressedBytes = compressedStr.getBytes(StandardCharsets.UTF_8);
-
-        try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(compressedBytes);
-             GZIPInputStream gzipInputStream = new GZIPInputStream(byteArrayInputStream);
-             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-
-            byte[] buffer = new byte[1024];
-            int len;
-            while ((len = gzipInputStream.read(buffer)) != -1) {
-                byteArrayOutputStream.write(buffer, 0, len);
-            }
-
-            return byteArrayOutputStream.toString(StandardCharsets.UTF_8.name());
-        } catch (IOException e) {
-//            throw new SparqlDebugException("Error during gzip decompression.", e);
-            return compressedStr;
-        }
-    }
-
     public static Boolean isCompressed(List<String> contentEncoding) {
         return contentEncoding.stream()
                 .filter(value -> value.equalsIgnoreCase("gzip"))

@@ -2,7 +2,7 @@ package cz.iocb.idsm.debugger.model;
 
 
 public enum SparqlResultType {
-    JSON("json"), XML("xml"), CSV("csv"), HTML("html");
+    JSON("json"), XML("xml"), CSV("csv"), HTML("html"), OTHER("other");
 
     public final String contentType;
 
