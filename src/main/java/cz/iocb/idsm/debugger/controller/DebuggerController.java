@@ -350,6 +350,10 @@ public class DebuggerController {
         logger.debug("executeService - start: queryId={}, parentEndpointNodeId={}, subqueryId={}, serviceCallId={}, endpointId={}",
                 queryId, parentEndpointNodeId, subqueryId, serviceCallId, endpointId);
 
+        if(endpointService.getCancellingQuerySet().contains(queryId)) {
+            return null;
+        }
+
         String endpoint = queryService.getEndpoint(endpointId);
 
         Optional<Node<SparqlQueryInfo>> subqueryNode = queryService.getQueryInfoNode(queryId, subqueryId);

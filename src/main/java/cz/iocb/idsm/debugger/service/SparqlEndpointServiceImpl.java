@@ -364,7 +364,10 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         cancellingQuerySet.add(queryId);
 
         Tree<EndpointCall> callTree = queryExecutionMap.get(queryId);
-        cancelCallTreeThreads(callTree.getRoot());
+
+        if(callTree != null) {
+            cancelCallTreeThreads(callTree.getRoot());
+        }
 
         queryExecutionMap.remove(queryId);
 
@@ -475,6 +478,10 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         return null;
     }
 
+    @Override
+    public Set<Long> getCancellingQuerySet() {
+        return cancellingQuerySet;
+    }
 
     private Long countJsonResults(InputStream inputStream) throws Exception {
         JsonFactory factory = new JsonFactory();

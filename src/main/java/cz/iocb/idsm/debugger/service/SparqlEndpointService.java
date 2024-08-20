@@ -11,6 +11,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface SparqlEndpointService {
     Node<EndpointCall>  createServiceEndpointNode(String endpoint, Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode, Long serviceCallId);
@@ -31,5 +32,7 @@ public interface SparqlEndpointService {
     void deleteQuery(Long queryId);
 
     void deleteQueries(Long cutoff);
+
+    Set<Long> getCancellingQuerySet();
 }
 
