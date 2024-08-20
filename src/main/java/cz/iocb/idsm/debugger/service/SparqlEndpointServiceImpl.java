@@ -64,9 +64,6 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     private final Set<Long> cancellingQuerySet = Collections.synchronizedSet(new HashSet<>());
 
-    @Autowired
-    private SessionScopeQueryList sessionQueryList;
-
     @Override
     public Node<EndpointCall> createServiceEndpointNode(String endpoint, Node<SparqlQueryInfo> queryNode, Node<EndpointCall> parentNode, Long serviceCallId) {
         logger.debug("createServiceEndpointNode - start");
@@ -102,8 +99,6 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
         queryExecutionMap.put(queryId, endpointTree);
 
-        sessionQueryList.add(queryId);
-
         logger.debug("createQueryEndpointRoot - end. queryId={}", queryId);
 
         return endpointTree.getRoot();
@@ -111,9 +106,6 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     @Override
     public Optional<Tree<EndpointCall>> getQueryTree(Long queryId) {
-        if(!queryIsInSession(queryId)) {
-            throw new SparqlDebugException("Query is not in current Web Session.");
-        }
 
         Tree<EndpointCall> queryTree = queryExecutionMap.get(queryId);
 
@@ -163,6 +155,10 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
+            if(cancellingQuerySet.contains(endpointCall.getQueryId())) {
+                throw new InterruptedException("Query was canceled.");
+            }
+
             processResponse(response, endpointCall, endpointCallNode, queryId);
             endpointCall.getCallThread().set(null);
 
@@ -176,10 +172,6 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             throw new SparqlDebugException("I/O Error during request.", e);
         } catch (InterruptedException e) {
             logger.error("Request interrupted.");
-
-            endpointCall.setState(EndpointNodeState.ERROR);
-            endpointCallNode.updateNode();
-
             Thread.currentThread().interrupt();
         }
 
@@ -265,9 +257,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
         httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
                 .thenAccept(resp -> {
-//                    endpointCall.getCallThread().set(Thread.currentThread());
-                    processResponse(resp, endpointCall, endpointCallNode, queryId);
-                    endpointCall.getCallThread().set(null);
+                    if(!cancellingQuerySet.contains(endpointCall.getQueryId())) {
+                        processResponse(resp, endpointCall, endpointCallNode, queryId);
+                    }
                 })
                 .exceptionally(e -> {
                     logger.error("Error during request. queryId={}, nodeId={} error={}",  queryId, endpointCall.getNodeId(), e.getMessage());
@@ -299,17 +291,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     @Override
     public FileSystemResource getFile(FileId fileId) {
-        if(!queryIsInSession(fileId.getQueryId())) {
-            throw new SparqlDebugException("Query is not in current Web Session.");
-        }
-
         FileSystemResource result = new FileSystemResource(fileId.getPath());
 
         return result;
-    }
-
-    private Boolean queryIsInSession(Long queryId) {
-        return sessionQueryList.contains(queryId);
     }
 
     private HttpRequest createHttpRequest(URI endpoint, String query) {
@@ -376,9 +360,6 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     @Override
     public void deleteQuery(Long queryId) {
-        if(!queryIsInSession(queryId)) {
-            throw new SparqlDebugException("Query is not in current Web Session.");
-        }
 
         cancellingQuerySet.add(queryId);
 

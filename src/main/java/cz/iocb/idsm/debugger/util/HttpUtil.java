@@ -37,16 +37,13 @@ public class HttpUtil {
     public static String prettyPrintRequest(HttpRequest request) {
         StringBuilder builder = new StringBuilder();
 
-        // Print request method and URI
         builder.append("Request Method: ").append(request.method()).append("\n");
         builder.append("Request URI: ").append(request.uri()).append("\n");
 
-        // Print headers
         HttpHeaders headers = request.headers();
         builder.append("Headers:\n");
         headers.map().forEach((k, v) -> builder.append("  ").append(k).append(": ").append(String.join(", ", v)).append("\n"));
 
-        // Attempt to print the body if possible
         builder.append("Body:\n");
         request.bodyPublisher().ifPresentOrElse(
                 bp -> bp.subscribe(new SimpleSubscriber(builder)),  // You will need to implement a SimpleSubscriber

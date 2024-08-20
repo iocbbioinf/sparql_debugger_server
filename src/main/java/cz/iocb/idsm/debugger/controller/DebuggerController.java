@@ -43,6 +43,8 @@ public class DebuggerController {
     @Autowired
     private SparqlQueryService sparqlQueryService;
 
+    @Autowired
+    private SessionScopeQueryList sessionQueryList;
 
     @Resource(name = "sparqlRequestBean")
     SparqlRequest sparqlRequest;
@@ -131,6 +133,10 @@ public class DebuggerController {
 
     @PostMapping("/query/{queryId}/delete")
     public void deleteQuery(@PathVariable Long queryId) {
+        if(!queryIsInSession(queryId)) {
+            throw new SparqlDebugException("Query is not in current Web Session.");
+        }
+
         endpointService.deleteQuery(queryId);
     }
 
@@ -154,6 +160,8 @@ public class DebuggerController {
 //        sparqlRequest.setHeaderMap(headerMap);
 
         Long queryId = executeQuery(endpoint);
+
+        sessionQueryList.add(queryId);
 
         SseEmitter result = endpointService.getQueryTree(queryId).get().getEmitter();
 
@@ -190,11 +198,17 @@ public class DebuggerController {
 
         Long queryId = executeQuery(endpoint);
 
+        sessionQueryList.add(queryId);
+
         return queryId;
     }
 
     @GetMapping("/query/{queryId}/sse")
     public SseEmitter startSse(@PathVariable Long queryId) {
+        if(!queryIsInSession(queryId)) {
+            throw new SparqlDebugException("Query is not in current Web Session.");
+        }
+
         if (endpointService.getQueryTree(queryId).isEmpty()) {
             logger.error("Query doesn't exist. queryId={}", queryId);
             throw new SparqlDebugException(format("Query doesn't exist. queryId=%d", queryId));
@@ -203,10 +217,13 @@ public class DebuggerController {
         return endpointService.getQueryTree(queryId).get().getEmitter();
     }
 
-
-
     @GetMapping("/query/{queryId}")
     public Tree<EndpointCall> getQueryInfo(@PathVariable Long queryId) {
+
+        if(!queryIsInSession(queryId)) {
+            throw new SparqlDebugException("Query is not in current Web Session.");
+        }
+
         if (endpointService.getQueryTree(queryId).isEmpty()) {
             logger.error("Query doesn't exist. queryId={}", queryId);
             throw new SparqlDebugException(format("Query doesn't exist. queryId=%d", queryId));
@@ -219,6 +236,9 @@ public class DebuggerController {
     @GetMapping("/query/{queryId}/call/{callId}/request")
     public org.springframework.core.io.Resource getRequest(@PathVariable Long queryId, @PathVariable Long callId) {
 
+        if(!queryIsInSession(queryId)) {
+            throw new SparqlDebugException("Query is not in current Web Session.");
+        }
 
         FileId fileId = new FileId(REQUEST, Long.valueOf(queryId), Long.valueOf(callId));
         return endpointService.getFile(fileId);
@@ -228,6 +248,10 @@ public class DebuggerController {
     public void getResponse(@PathVariable Long queryId, @PathVariable Long callId,
                             @RequestHeader(value = "Range", required = false) String rangeHeader,
                             HttpServletResponse response) {
+
+        if(!queryIsInSession(queryId)) {
+            throw new SparqlDebugException("Query is not in current Web Session.");
+        }
 
         FileId fileId = new FileId(RESPONSE, Long.valueOf(queryId), Long.valueOf(callId));
 
@@ -357,6 +381,10 @@ public class DebuggerController {
 
             return sparqlRequestType;
         }
+    }
+
+    private Boolean queryIsInSession(Long queryId) {
+        return sessionQueryList.contains(queryId);
     }
 
 }
