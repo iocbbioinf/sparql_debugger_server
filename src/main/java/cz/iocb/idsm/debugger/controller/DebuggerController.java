@@ -269,9 +269,9 @@ public class DebuggerController {
                 response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
                 response.setHeader("Accept-Ranges", "bytes");
 
-                String rangeContent = readNBytesFromFile(endpointService.getFile(fileId).getInputStream(), start, end, isCompressed, endpointCall.getCharset());
+                String rangeContent = readNBytesFromFile(endpointService.getFile(fileId).getInputStream(), start, end, isCompressed, StandardCharsets.UTF_8.displayName());
 
-                response.getOutputStream().write(rangeContent.getBytes(endpointCall.getCharset()));
+                response.getOutputStream().write(rangeContent.getBytes(StandardCharsets.UTF_8));
 
                 return;
             }

@@ -429,7 +429,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     private void saveResponse(byte[] responseBody, Long queryId, Long nodeId, String charset) {
         FileId fileId = new FileId(RESPONSE, queryId, nodeId);
 
-        try (Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileId.getPath()), charset))) {
+         try (Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileId.getPath()), StandardCharsets.UTF_8))) {
             writer.write(new String(responseBody, charset));
         } catch (IOException e) {
             throw new SparqlDebugException("Unable to write request to file.", e);
