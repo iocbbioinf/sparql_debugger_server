@@ -1,5 +1,11 @@
 package cz.iocb.idsm.debugger.util;
 
+import cz.iocb.idsm.debugger.service.SparqlEndpointServiceImpl;
+import org.apache.jena.query.QueryFactory;
+import org.apache.jena.sparql.algebra.Algebra;
+import org.apache.jena.sparql.algebra.OpAsQuery;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -31,10 +37,10 @@ public class HttpUtil {
 
     public static final String HEADER_CONTENT_TYPE = "content-type";
 
+    private static final Logger logger = LoggerFactory.getLogger(HttpUtil.class);
 
 
-
-    public static String prettyPrintRequest(HttpRequest request) {
+    public static String prettyPrintRequest(HttpRequest request, String queryStr) {
         StringBuilder builder = new StringBuilder();
 
         builder.append("Request Method: ").append(request.method()).append("\n");
@@ -45,49 +51,21 @@ public class HttpUtil {
         headers.map().forEach((k, v) -> builder.append("  ").append(k).append(": ").append(String.join(", ", v)).append("\n"));
 
         builder.append("Body:\n");
-        request.bodyPublisher().ifPresentOrElse(
-                bp -> bp.subscribe(new SimpleSubscriber(builder)),  // You will need to implement a SimpleSubscriber
-                () -> builder.append("  No body present\n")
-        );
+
+        String prettyQueryStr = queryStr;
+        try {
+            prettyQueryStr = OpAsQuery.asQuery(Algebra.compile(QueryFactory.create(queryStr))).serialize();
+        } catch (Exception e) {
+            logger.error("Unable to format SPARQL request.", e);
+        }
+
+        builder.append(prettyQueryStr);
 
         return URLDecoder.decode(builder.toString());
     }
 
     public static String prettyPrintResponse(String responseBody) {
         return responseBody;
-    }
-
-    // Simple Subscriber to read and print the body content
-    static class SimpleSubscriber implements Flow.Subscriber<ByteBuffer> {
-        private Flow.Subscription subscription;
-        private final StringBuilder builder;
-
-        public SimpleSubscriber(StringBuilder builder) {
-            this.builder = builder;
-        }
-
-        @Override
-        public void onSubscribe(Flow.Subscription subscription) {
-            this.subscription = subscription;
-            subscription.request(1);
-        }
-
-        @Override
-        public void onNext(ByteBuffer item) {
-            String bodyPart = StandardCharsets.UTF_8.decode(item).toString();
-            builder.append("  ").append(bodyPart).append("\n");
-            subscription.request(1);
-        }
-
-        @Override
-        public void onError(Throwable throwable) {
-            builder.append("  Error reading body: ").append(throwable.getMessage()).append("\n");
-        }
-
-        @Override
-        public void onComplete() {
-            builder.append("  Body read complete.\n");
-        }
     }
 
     public static URI addQueryParam(URI uri, String... queryParams) throws URISyntaxException {

@@ -141,7 +141,7 @@ public class DebuggerController {
     }
 
     @GetMapping("/query")
-    public SseEmitter debugQueryGet(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
+    public Long debugQueryGet(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
                                     @RequestParam(name = PARAM_QUERY) String query,
                                     @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
                                     @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri
@@ -163,9 +163,7 @@ public class DebuggerController {
 
         sessionQueryList.add(queryId);
 
-        SseEmitter result = endpointService.getQueryTree(queryId).get().getEmitter();
-
-        return result;
+        return queryId;
     }
 
     @PostMapping("/query")
@@ -191,6 +189,7 @@ public class DebuggerController {
 
         Map<String, String> newHeaderMap = new HashMap<>();
         newHeaderMap.put("content-type", "application/x-www-form-urlencoded");
+        newHeaderMap.put("accept", "application/sparql-results+xml, text/rdf n3, text/rdf ttl, text/rdf turtle, text/turtle, application/turtle, application/x-turtle, application/rdf xml, application/xml, application/sparql-results+json, text/csv, text/tab-separated-values, text/turtle, application/n-triples, application/ld+json");
 
         sparqlRequest.setHeaderMap(newHeaderMap);
 //        sparqlRequest.setHeaderMap(headerMap);
@@ -210,7 +209,6 @@ public class DebuggerController {
         }
 
         if (endpointService.getQueryTree(queryId).isEmpty()) {
-            logger.error("Query doesn't exist. queryId={}", queryId);
             throw new SparqlDebugException(format("Query doesn't exist. queryId=%d", queryId));
         }
 
@@ -225,7 +223,6 @@ public class DebuggerController {
         }
 
         if (endpointService.getQueryTree(queryId).isEmpty()) {
-            logger.error("Query doesn't exist. queryId={}", queryId);
             throw new SparqlDebugException(format("Query doesn't exist. queryId=%d", queryId));
         }
 

@@ -135,7 +135,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         String proxyQuery = sparqlQueryService.injectOuterServices(sparqlRequest.getQuery(), endpointCallNode.getData());
 
         HttpRequest request = createHttpRequest(endpoint, proxyQuery);
-        saveRequest(request, queryId, endpointCall.getNodeId());
+        saveRequest(request, queryId, endpointCall.getNodeId(), proxyQuery);
 
         return request;
     }
@@ -217,7 +217,6 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
             if(resultType == SparqlResultType.XML) {
                 CharsetDetector detector = new CharsetDetector();
-                // Read all bytes from the file into a byte array
                 detector.setText(new BufferedInputStream(inputStream));
                 CharsetMatch charsetMatch = detector.detect();
                 return charsetMatch.getName();
@@ -402,17 +401,17 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         }
     }
 
-    private void saveRequest(HttpRequest request, Long queryId, Long nodeId) {
+    private void saveRequest(HttpRequest request, Long queryId, Long nodeId, String proxyQuery) {
         FileId fileId = new FileId(REQUEST, queryId, nodeId);
         try {
             logger.debug("saveRequest - start. queryId={} , nodeId={}, request={}", queryId, nodeId,
-                    HttpUtil.prettyPrintRequest(request));
+                    HttpUtil.prettyPrintRequest(request, proxyQuery));
 
             File tempFile = new File(fileId.getPath());
             tempFile.deleteOnExit();
 
             FileWriter fileWriter = new FileWriter(tempFile);
-            fileWriter.write(HttpUtil.prettyPrintRequest(request));
+            fileWriter.write(HttpUtil.prettyPrintRequest(request, proxyQuery));
             fileWriter.close();
         } catch (IOException e) {
             throw new SparqlDebugException("Unable to write request to file.", e);
@@ -499,19 +498,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     }
 
     private Long countXmlResults(InputStream inputStream) throws Exception {
-        /*
-        EncodingDetector encodingDetector =  new UniversalEncodingDetector();
-
-        Charset detectedCharset = encodingDetector.detect(inputStream, new Metadata());
-
-        SAXParserFactory factory = SAXParserFactory.newInstance();
-        SAXParser saxParser = factory.newSAXParser();
-        ResultCountingHandler handler = new ResultCountingHandler();
-        saxParser.parse(new InputSource(new InputStreamReader(inputStream, detectedCharset)), handler);
-        */
-
         CharsetDetector detector = new CharsetDetector();
-        // Read all bytes from the file into a byte array
         detector.setText(inputStream);
         CharsetMatch charsetMatch = detector.detect();
 
