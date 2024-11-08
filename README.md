@@ -4,7 +4,7 @@
 
 The tool is divided into two main components:
 - **Server (this repository):** Handles the backend logic, including REST API and SSE messages.
-- **Frontend React Component:** Renders the service execution tree. You can find it [here](https://gitlab.elixir-czech.cz/moos/sparqldebugtree).
+- **Frontend React Component:** Renders the service execution tree. You can find it [here](https://github.com/iocbbioinf/sparql_debugger_component).
 
 ## REST API
 
@@ -42,3 +42,6 @@ Use the provided Kubernetes descriptors to deploy the application:
     - **Required Edits:**
         - Update the `host` and `hosts` attributes.
         - Modify the `nginx.ingress.kubernetes.io/cors-allow-origin` annotation.
+
+## Running instance
+Whole SPARQL Federated Query Debugger application is available [here](https://idsm-react-debugger-1.dyn.cloud.e-infra.cz/). 
