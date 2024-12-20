@@ -132,7 +132,12 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
                     .count());
         }
 
-        String proxyQuery = sparqlQueryService.injectOuterServices(sparqlRequest.getQuery(), endpointCallNode.getData());
+        String proxyQuery = null;
+        try {
+            proxyQuery = sparqlQueryService.injectOuterServices(sparqlRequest.getQuery(), endpointCallNode.getData());
+        } catch (Exception e) {
+            throw e;
+        }
 
         HttpRequest request = createHttpRequest(endpoint, proxyQuery);
         saveRequest(request, queryId, endpointCall.getNodeId(), proxyQuery);
@@ -414,7 +419,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             fileWriter.write(HttpUtil.prettyPrintRequest(request, proxyQuery));
             fileWriter.close();
         } catch (IOException e) {
-            throw new SparqlDebugException("Unable to write request to file.", e);
+            logger.error("Unable to save request:", e);
+//            throw new SparqlDebugException("Unable to write request to file.", e);
         }
     }
 
@@ -498,16 +504,21 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     }
 
     private Long countXmlResults(InputStream inputStream) throws Exception {
-        CharsetDetector detector = new CharsetDetector();
-        detector.setText(inputStream);
-        CharsetMatch charsetMatch = detector.detect();
+        try {
+            CharsetDetector detector = new CharsetDetector();
+            detector.setText(inputStream);
+            CharsetMatch charsetMatch = detector.detect();
 
-        SAXParserFactory factory = SAXParserFactory.newInstance();
-        SAXParser saxParser = factory.newSAXParser();
-        ResultCountingHandler handler = new ResultCountingHandler();
-        saxParser.parse(new InputSource(new InputStreamReader(inputStream, charsetMatch.getName())), handler);
+            SAXParserFactory factory = SAXParserFactory.newInstance();
+            SAXParser saxParser = factory.newSAXParser();
+            ResultCountingHandler handler = new ResultCountingHandler();
+            saxParser.parse(new InputSource(new InputStreamReader(inputStream, charsetMatch.getName())), handler);
 
-        return handler.getCount();
+            return handler.getCount();
+
+        } catch (Exception e) {
+            throw new SparqlDebugException("Unable to parse XML response.", e);
+        }
     }
 
     private Long countCsvResults(InputStream inputStream) throws Exception {

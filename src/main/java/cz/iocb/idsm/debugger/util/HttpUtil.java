@@ -34,6 +34,8 @@ public class HttpUtil {
     public static final String PARAM_QUERY = "query";
     public static final String PARAM_DEFAULT_GRAPH_URI = "default-graph-uri";
     public static final String PARAM_NAMED_GRAPH_URI = "named-graph-uri";
+    public static final String PARAM_REQUEST_CONTEXT = "requestcontext";
+
 
     public static final String HEADER_CONTENT_TYPE = "content-type";
 
@@ -61,7 +63,8 @@ public class HttpUtil {
 
         builder.append(prettyQueryStr);
 
-        return URLDecoder.decode(builder.toString());
+//        return URLDecoder.decode(builder.toString());
+        return builder.toString();
     }
 
     public static String prettyPrintResponse(String responseBody) {

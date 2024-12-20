@@ -1,5 +1,6 @@
 package cz.iocb.idsm.debugger.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import cz.iocb.idsm.debugger.model.*;
 import cz.iocb.idsm.debugger.model.Tree.Node;
 import cz.iocb.idsm.debugger.service.SparqlEndpointService;
@@ -154,7 +155,10 @@ public class DebuggerController {
 
         Map<String, String> newHeaderMap = new HashMap<>();
         newHeaderMap.put("content-type", "application/x-www-form-urlencoded");
-        newHeaderMap.put("accept", "application/sparql-results+xml, text/rdf n3, text/rdf ttl, text/rdf turtle, text/turtle, application/turtle, application/x-turtle, application/rdf xml, application/xml, application/sparql-results+json, text/csv, text/tab-separated-values, text/turtle, application/n-triples, application/ld+json");
+//        newHeaderMap.put("accept", "application/sparql-results+xml, text/rdf n3, text/rdf ttl, text/rdf turtle, text/turtle, application/turtle, application/x-turtle, application/rdf xml, application/xml, application/sparql-results+json, text/csv, text/tab-separated-values, text/turtle, application/n-triples, application/ld+json");
+        newHeaderMap.put("accept", headerMap.get("accept"));
+
+
 
         sparqlRequest.setHeaderMap(newHeaderMap);
 //        sparqlRequest.setHeaderMap(headerMap);
@@ -171,29 +175,13 @@ public class DebuggerController {
                                      @RequestParam(name = PARAM_QUERY, required = false) String query,
                                      @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
                                      @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
+                                     @RequestParam(name = PARAM_REQUEST_CONTEXT, required = false) String requestContext,
                                      @RequestBody(required = false) String body
     ) {
 
         logger.debug("debugQueryGet - start: headerMap: {}", Arrays.toString(headerMap.keySet().toArray()));
 
-        SparqlRequestType sparqlRequestType = getRequestType(headerMap.get(HEADER_CONTENT_TYPE));
-
-        sparqlRequest.setType(getRequestType(headerMap.get(HEADER_CONTENT_TYPE)));
-        if (sparqlRequestType.equals(SparqlRequestType.POST_FORM)) {
-            sparqlRequest.setQuery(query);
-        } else {
-            sparqlRequest.setQuery(body);
-        }
-        sparqlRequest.setNamedGraphUri(namedGraphUri);
-        sparqlRequest.setDefaultGraphUri(defaultGraphUri);
-
-        Map<String, String> newHeaderMap = new HashMap<>();
-        newHeaderMap.put("content-type", "application/x-www-form-urlencoded");
-        newHeaderMap.put("accept", "application/sparql-results+xml, text/rdf n3, text/rdf ttl, text/rdf turtle, text/turtle, application/turtle, application/x-turtle, application/rdf xml, application/xml, application/sparql-results+json, text/csv, text/tab-separated-values, text/turtle, application/n-triples, application/ld+json");
-
-        sparqlRequest.setHeaderMap(newHeaderMap);
-//        sparqlRequest.setHeaderMap(headerMap);
-
+        populateSparqlRequest(requestContext, query, body);
 
         Long queryId = executeQuery(endpoint);
 
@@ -388,4 +376,39 @@ public class DebuggerController {
         return sessionQueryList.contains(queryId);
     }
 
+    private void populateSparqlRequest(String requestContextStr, String query, String body) {
+        if (requestContextStr != null) {
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                RequestContext requestContext = objectMapper.readValue(requestContextStr, RequestContext.class);
+                logger.debug("Parsed RequestContext: {}", requestContext);
+
+                if(requestContext.getMethod().equals("POST")) {
+                    sparqlRequest.setType(SparqlRequestType.POST_FORM);
+                } else {
+                    sparqlRequest.setType(SparqlRequestType.GET);
+                }
+
+
+                if (sparqlRequest.getType() == SparqlRequestType.POST_FORM) {
+                    sparqlRequest.setQuery(query);
+                } else {
+                    sparqlRequest.setQuery(body);
+                }
+
+                if(!requestContext.getNamedGraphs().isEmpty()) {
+                    sparqlRequest.setNamedGraphUri(requestContext.getNamedGraphs().getFirst());
+                }
+                if(!requestContext.getDefaultGraphs().isEmpty()) {
+                    sparqlRequest.setDefaultGraphUri((requestContext.getDefaultGraphs().getFirst()));
+                }
+
+                sparqlRequest.setHeaderMap(sparqlRequest.getHeaderMap());
+
+            } catch (Exception e) {
+                logger.error("Failed to parse requestContext JSON", e);
+                throw new IllegalArgumentException("Invalid JSON for requestContext");
+            }
+        }
+    }
 }

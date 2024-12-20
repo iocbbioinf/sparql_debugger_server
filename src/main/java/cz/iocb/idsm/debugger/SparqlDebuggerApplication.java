@@ -27,10 +27,9 @@ public class SparqlDebuggerApplication {
 
 	@Bean
 	public HttpClient httpClient() {
-		HttpClient result = HttpClient.newHttpClient();
-		result.followRedirects();
-
-		return result;
+		return HttpClient.newBuilder()
+				.followRedirects(HttpClient.Redirect.ALWAYS)
+				.build();
 	}
 
 	@Bean

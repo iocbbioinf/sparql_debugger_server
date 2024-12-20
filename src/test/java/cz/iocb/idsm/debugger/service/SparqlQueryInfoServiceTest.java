@@ -66,7 +66,5 @@ public class SparqlQueryInfoServiceTest {
 
         Tree<SparqlQueryInfo> root = sparqlQueryService.createQueryTree(testEndpoint, query, 1L);
 
-        System.out.println("MMO-tmp - root: " + root.toString());
-
     }
 }
