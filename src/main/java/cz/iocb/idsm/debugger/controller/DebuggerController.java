@@ -403,7 +403,13 @@ public class DebuggerController {
                     sparqlRequest.setDefaultGraphUri((requestContext.getDefaultGraphs().getFirst()));
                 }
 
-                sparqlRequest.setHeaderMap(sparqlRequest.getHeaderMap());
+                sparqlRequest.setHeaderMap(requestContext.getHeaders());
+
+                sparqlRequest.getHeaderMap().put("accept", requestContext.getAcceptHeaderSelect());
+
+                if(requestContext.getMethod().equals("POST")) {
+                    sparqlRequest.getHeaderMap().put("content-type", "application/x-www-form-urlencoded");
+                }
 
             } catch (Exception e) {
                 logger.error("Failed to parse requestContext JSON", e);
