@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.Collection;
 
-@Component
 public class ResponseHeaderLoggingFilter extends HttpFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(ResponseHeaderLoggingFilter.class);

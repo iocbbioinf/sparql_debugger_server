@@ -1,9 +1,11 @@
 package cz.iocb.idsm.debugger;
 
 import cz.iocb.idsm.debugger.controller.RequestLoggingFilter;
+import cz.iocb.idsm.debugger.controller.ResponseHeaderLoggingFilter;
 import cz.iocb.idsm.debugger.model.SparqlRequest;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.annotation.RequestScope;
@@ -32,9 +34,29 @@ public class SparqlDebuggerApplication {
 				.build();
 	}
 
+	/*
 	@Bean
 	public RequestLoggingFilter requestLoggingFilter() {
 		return new RequestLoggingFilter();
+	}
+	*/
+
+	@Bean
+	public FilterRegistrationBean<RequestLoggingFilter> requestLoggingFilter() {
+		FilterRegistrationBean<RequestLoggingFilter> registrationBean = new FilterRegistrationBean<>();
+		registrationBean.setFilter(new RequestLoggingFilter());
+		registrationBean.addUrlPatterns("/query/*", "/service/*"); // Restrict to specific paths
+		registrationBean.setName("RequestLoggingFilter");
+		return registrationBean;
+	}
+
+	@Bean
+	public FilterRegistrationBean<ResponseHeaderLoggingFilter> responseLoggingFilter() {
+		FilterRegistrationBean<ResponseHeaderLoggingFilter> registrationBean = new FilterRegistrationBean<>();
+		registrationBean.setFilter(new ResponseHeaderLoggingFilter());
+		registrationBean.addUrlPatterns("/query/*", "/service/*"); // Restrict to specific paths
+		registrationBean.setName("ResponseLoggingFilter");
+		return registrationBean;
 	}
 
 	@Bean
