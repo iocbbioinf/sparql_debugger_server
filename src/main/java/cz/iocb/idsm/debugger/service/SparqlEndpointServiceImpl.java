@@ -303,21 +303,23 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     private HttpRequest createHttpRequest(URI endpoint, String query) {
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
+
+        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(endpoint.toString());
+        if (sparqlRequest.getDefaultGraphUri() != null) {
+            uriBuilder.queryParam(HttpUtil.PARAM_DEFAULT_GRAPH_URI, sparqlRequest.getDefaultGraphUri());
+        }
+        if (sparqlRequest.getNamedGraphUri() != null) {
+            uriBuilder.queryParam(HttpUtil.PARAM_NAMED_GRAPH_URI, sparqlRequest.getNamedGraphUri());
+        }
+
         switch (sparqlRequest.getType()) {
             case GET -> {
-                UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(endpoint.toString())
-                        .queryParam(HttpUtil.PARAM_QUERY, query);
-                if (sparqlRequest.getDefaultGraphUri() != null) {
-                    uriBuilder.queryParam(HttpUtil.PARAM_DEFAULT_GRAPH_URI, sparqlRequest.getDefaultGraphUri());
-                }
-                if (sparqlRequest.getNamedGraphUri() != null) {
-                    uriBuilder.queryParam(HttpUtil.PARAM_NAMED_GRAPH_URI, sparqlRequest.getNamedGraphUri());
-                }
-
+                uriBuilder.queryParam(HttpUtil.PARAM_QUERY, URLEncoder.encode(query, StandardCharsets.UTF_8));
                 requestBuilder
-                        .uri(uriBuilder.build().toUri())
+                        .uri(uriBuilder.build(true).toUri())
                         .GET();
             }
+
             case POST_FORM -> {
                 Map<String, String> paramMap = new HashMap<>();
                 paramMap.put(HttpUtil.PARAM_QUERY, query);
@@ -335,14 +337,6 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
                         .POST(HttpRequest.BodyPublishers.ofString(formData));
             }
             case POST_PLAIN -> {
-                UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(endpoint.toString());
-                if (sparqlRequest.getDefaultGraphUri() != null) {
-                    uriBuilder.queryParam(HttpUtil.PARAM_DEFAULT_GRAPH_URI, sparqlRequest.getDefaultGraphUri());
-                }
-                if (sparqlRequest.getNamedGraphUri() != null) {
-                    uriBuilder.queryParam(HttpUtil.PARAM_NAMED_GRAPH_URI, sparqlRequest.getNamedGraphUri());
-                }
-
                 requestBuilder
                         .uri(uriBuilder.build().toUri())
                         .POST(HttpRequest.BodyPublishers.ofString(query));
@@ -495,8 +489,14 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
         while (!parser.isClosed()) {
             JsonToken token = parser.nextToken();
-            if (JsonToken.FIELD_NAME.equals(token) && "result".equals(parser.getCurrentName())) {
-                count++;
+            if (JsonToken.FIELD_NAME.equals(token) && "bindings".equals(parser.getCurrentName())) {
+                while (parser.nextToken() != JsonToken.END_ARRAY) {
+                    if (JsonToken.START_OBJECT.equals(parser.currentToken())) {
+                        count++;
+                        parser.skipChildren();
+                    }
+                }
+                break;
             }
         }
 

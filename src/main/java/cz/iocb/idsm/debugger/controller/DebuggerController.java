@@ -389,8 +389,7 @@ public class DebuggerController {
                     sparqlRequest.setType(SparqlRequestType.GET);
                 }
 
-
-                if (sparqlRequest.getType() == SparqlRequestType.POST_FORM) {
+                if (sparqlRequest.getType() == SparqlRequestType.POST_FORM || sparqlRequest.getType() == SparqlRequestType.GET) {
                     sparqlRequest.setQuery(query);
                 } else {
                     sparqlRequest.setQuery(body);

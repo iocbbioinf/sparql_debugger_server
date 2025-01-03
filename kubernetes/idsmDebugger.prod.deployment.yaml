@@ -25,7 +25,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: idsm-debugger-prod
-          image: registry.gitlab.com/marekmoosuochb/testrepo/idsmdebugger:89
+          image: registry.gitlab.com/marekmoosuochb/testrepo/idsmdebugger:95
           securityContext: # Container security context
             runAsUser: 1000
             allowPrivilegeEscalation: false
