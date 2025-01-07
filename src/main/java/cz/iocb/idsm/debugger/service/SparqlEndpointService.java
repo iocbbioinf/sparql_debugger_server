@@ -18,7 +18,7 @@ public interface SparqlEndpointService {
     Node<EndpointCall> createQueryEndpointRoot(URI endpoint);
 
     HttpRequest prepareEndpointToCall(URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode);
-    HttpResponse<byte[]> callEndpointSync(HttpRequest request, URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode);
+    DebugResponse callEndpointSync(HttpRequest request, URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode);
     void callEndpointAsync(HttpRequest request, URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode);
 
     Optional<Node<EndpointCall>> getEndpointNode(Long queryId, Long nodeId);
@@ -34,5 +34,6 @@ public interface SparqlEndpointService {
     void deleteQueries(Long cutoff);
 
     Set<Long> getCancellingQuerySet();
+
 }
 

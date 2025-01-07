@@ -78,9 +78,9 @@ public class DebuggerController {
         sparqlRequest.setDefaultGraphUri(defaultGraphUri);
         sparqlRequest.setHeaderMap(headerMap);
 
-        HttpResponse<byte[]> httpResponse = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
+        DebugResponse debugResponse = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
 
-        createResponse(httpResponse, response);
+        createResponse(debugResponse.getHttpResponse(), response, debugResponse.getRespInputStream());
     }
 
     @GetMapping("/service/query/{queryId}/parent/{parentEndpointNodeId}/subquery/{subqueryId}/serviceCall/{serviceCallId}/endpoint/{endpointId}")
@@ -102,12 +102,12 @@ public class DebuggerController {
         sparqlRequest.setDefaultGraphUri(defaultGraphUri);
         sparqlRequest.setHeaderMap(headerMap);
 
-        HttpResponse<byte[]> httpResponse = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
+        DebugResponse debugResponse = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
 
-        createResponse(httpResponse, response);
+        createResponse(debugResponse.getHttpResponse(), response, debugResponse.getRespInputStream());
     }
 
-    private void createResponse(HttpResponse<byte[]> httpResponse, HttpServletResponse response) {
+    private void createResponse(HttpResponse<InputStream> httpResponse, HttpServletResponse response, InputStream respInputStream) {
         if (httpResponse == null) {
             return;
         }
@@ -124,9 +124,8 @@ public class DebuggerController {
                     response.addHeader(entry.getKey(), headerValue);
                 });
 
-        byte[] responseBody = httpResponse.body();
         try {
-            response.getOutputStream().write(responseBody);
+            IOUtils.copy(respInputStream, response.getOutputStream());
         } catch (IOException e) {
             throw new SparqlDebugException("Unable to red endpoint response body stream.", e);
         }
@@ -331,7 +330,7 @@ public class DebuggerController {
         return endpointRoot.getData().getQueryId();
     }
 
-    private HttpResponse<byte[]> executeService(Long endpointId, Long queryId, Long parentEndpointNodeId, Long subqueryId, Long serviceCallId) {
+    private DebugResponse executeService(Long endpointId, Long queryId, Long parentEndpointNodeId, Long subqueryId, Long serviceCallId) {
         logger.debug("executeService - start: queryId={}, parentEndpointNodeId={}, subqueryId={}, serviceCallId={}, endpointId={}",
                 queryId, parentEndpointNodeId, subqueryId, serviceCallId, endpointId);
 
@@ -417,3 +416,4 @@ public class DebuggerController {
         }
     }
 }
+

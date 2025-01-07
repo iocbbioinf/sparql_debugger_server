@@ -1,7 +1,9 @@
 package cz.iocb.idsm.debugger.util;
 
 import cz.iocb.idsm.debugger.model.Tree;
+import org.apache.commons.io.IOUtils;
 
+import java.io.*;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -64,6 +66,18 @@ public class DebuggerUtil {
         return result;
     }
 
-
+    public static void saveInputStreamToFile(InputStream inputStream, String fileName) throws IOException {
+        try (FileOutputStream outputStream = new FileOutputStream(fileName)) {
+            byte[] buffer = new byte[IOUtils.DEFAULT_BUFFER_SIZE];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+        } finally {
+            if (inputStream != null) {
+                inputStream.close();
+            }
+        }
+    }
 
 }

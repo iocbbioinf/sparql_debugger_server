@@ -10,6 +10,7 @@ import cz.iocb.idsm.debugger.model.Tree.Node;
 import cz.iocb.idsm.debugger.util.HttpUtil;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import jakarta.annotation.Resource;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,7 @@ import java.util.zip.GZIPInputStream;
 
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.REQUEST;
 import static cz.iocb.idsm.debugger.model.FileId.FILE_TYPE.RESPONSE;
+import static cz.iocb.idsm.debugger.util.DebuggerUtil.saveInputStreamToFile;
 import static cz.iocb.idsm.debugger.util.HttpUtil.isCompressed;
 
 
@@ -55,6 +57,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
     @Resource(name = "sparqlRequestBean")
     SparqlRequest sparqlRequest;
+
+    public static AtomicLong cancelCounter = new AtomicLong(0);
 
     private static final Logger logger = LoggerFactory.getLogger(SparqlEndpointServiceImpl.class);
 
@@ -146,9 +150,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     }
 
     @Override
-    public HttpResponse<byte[]> callEndpointSync(HttpRequest request, URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
+    public DebugResponse callEndpointSync(HttpRequest request, URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
 
-        HttpResponse<byte[]> response = null;
+        HttpResponse<InputStream> response = null;
         EndpointCall endpointCall = endpointCallNode.getData();
 
         try {
@@ -158,7 +162,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
             endpointCall.getCallThread().set(Thread.currentThread());
 
-            response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
 
             if(cancellingQuerySet.contains(endpointCall.getQueryId())) {
                 throw new InterruptedException("Query was canceled.");
@@ -168,6 +172,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
             endpointCall.getCallThread().set(null);
 
             logger.debug("callEndpoint - end. queryId={}, nodeId={}", queryId, endpointCall.getNodeId());
+
+            FileId fileId = new FileId(RESPONSE, queryId, endpointCall.getNodeId());
+            return new DebugResponse(response, new FileInputStream(fileId.getPath()));
         } catch (IOException e) {
             logger.error("I/O Error during request. queryId={}, nodeId={}", queryId, endpointCall.getNodeId());
 
@@ -178,44 +185,43 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         } catch (InterruptedException e) {
             logger.error("Request interrupted.");
             Thread.currentThread().interrupt();
+            return null;
         }
-
-        return response;
     }
 
-    private void processResponse(HttpResponse<byte[]> response, EndpointCall endpointCall, Node<EndpointCall> endpointCallNode, Long queryId) {
+    private void processResponse(HttpResponse<InputStream> response, EndpointCall endpointCall, Node<EndpointCall> endpointCallNode, Long queryId) {
 
-        if(response.statusCode() >= 200 && response.statusCode() < 300) {
-            endpointCall.setState(EndpointNodeState.SUCCESS);
-        } else {
-            endpointCall.setState(EndpointNodeState.ERROR);
-        }
-
-        endpointCall.setHttpStatus(response.statusCode());
-        endpointCall.setEndTime(System.currentTimeMillis());
-
-        endpointCall.setContentType(response.headers().allValues(HttpHeaderNames.CONTENT_TYPE.toString()));
-        endpointCall.setContentEncoding(response.headers().allValues(HttpHeaderNames.CONTENT_ENCODING.toString()));
-
-        SparqlResultType resultType = getResultType(endpointCall.getContentType());
-        endpointCall.setResultType(resultType.name());
-
-        endpointCall.setCharset(getRespCharset(SparqlResultType.valueOf(endpointCall.getResultType()), endpointCall.getContentEncoding(), response.body()));
-
-        InputStream inputStream = new ByteArrayInputStream(response.body());
-        Long resultsCount = getResultCount(inputStream, resultType, endpointCall.getContentEncoding());
-
-        endpointCall.setResultsCount(resultsCount);
-
-        saveResponse(response.body(), queryId, endpointCall.getNodeId(), endpointCall.getCharset());
-
-        endpointCallNode.updateNode();
-    }
-
-    private String getRespCharset(SparqlResultType resultType, List<String> contentEncoding, byte[] responseBody) {
         try {
-            InputStream inputStream = new ByteArrayInputStream(responseBody);
+            saveResponse(response.body(), queryId, endpointCall.getNodeId());
 
+            FileId fileId = new FileId(RESPONSE, queryId, endpointCall.getNodeId());
+
+            if(response.statusCode() >= 200 && response.statusCode() < 300) {
+                endpointCall.setState(EndpointNodeState.SUCCESS);
+            } else {
+                endpointCall.setState(EndpointNodeState.ERROR);
+            }
+
+            endpointCall.setHttpStatus(response.statusCode());
+            endpointCall.setEndTime(System.currentTimeMillis());
+            endpointCall.setContentType(response.headers().allValues(HttpHeaderNames.CONTENT_TYPE.toString()));
+            endpointCall.setContentEncoding(response.headers().allValues(HttpHeaderNames.CONTENT_ENCODING.toString()));
+            SparqlResultType resultType = getResultType(endpointCall.getContentType());
+            endpointCall.setResultType(resultType.name());
+            endpointCall.setCharset(getRespCharset(SparqlResultType.valueOf(endpointCall.getResultType()),
+                    endpointCall.getContentEncoding(), new FileInputStream(fileId.getPath())));
+
+            Long resultsCount = getResultCount(new FileInputStream(fileId.getPath()), resultType, endpointCall.getContentEncoding());
+            endpointCall.setResultsCount(resultsCount);
+
+            endpointCallNode.updateNode();
+        } catch (IOException e) {
+            throw new SparqlDebugException("unable to process response.", e);
+        }
+    }
+
+    private String getRespCharset(SparqlResultType resultType, List<String> contentEncoding, InputStream inputStream) {
+        try {
             if(isCompressed(contentEncoding)) {
                 inputStream = new GZIPInputStream(inputStream);
             }
@@ -259,7 +265,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
     public void callEndpointAsync(HttpRequest request, URI endpoint, Long queryId, Node<EndpointCall> endpointCallNode) {
         EndpointCall endpointCall = endpointCallNode.getData();
 
-        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream())
                 .thenAccept(resp -> {
                     if(!cancellingQuerySet.contains(endpointCall.getQueryId())) {
                         processResponse(resp, endpointCall, endpointCallNode, queryId);
@@ -383,6 +389,9 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
         if(node.getData().getCallThread().get() != null) {
             node.getData().getCallThread().get().interrupt();
+
+            // MMO-test
+            cancelCounter.incrementAndGet();
         }
     }
 
@@ -425,11 +434,10 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
                 .collect(Collectors.joining("&"));
     }
 
-    private void saveResponse(byte[] responseBody, Long queryId, Long nodeId, String charset) {
+    private void saveResponse(InputStream responseBody, Long queryId, Long nodeId) {
         FileId fileId = new FileId(RESPONSE, queryId, nodeId);
-
-         try (Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileId.getPath()), StandardCharsets.UTF_8))) {
-            writer.write(new String(responseBody, charset));
+        try {
+            saveInputStreamToFile(responseBody, fileId.getPath());
         } catch (IOException e) {
             throw new SparqlDebugException("Unable to write request to file.", e);
         }
@@ -471,7 +479,8 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
                 return countCsvResults(inputStream);
             }
         } catch (Exception e) {
-            logger.error("unable to process results", e);
+            logger.error("unable to get results count");
+            logger.debug("unable to get results count - details:", e);
         }
 
         return null;
@@ -503,16 +512,12 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         return count;
     }
 
-    private Long countXmlResults(InputStream inputStream) throws Exception {
+    private Long countXmlResults(InputStream inputStream) {
         try {
-            CharsetDetector detector = new CharsetDetector();
-            detector.setText(inputStream);
-            CharsetMatch charsetMatch = detector.detect();
-
             SAXParserFactory factory = SAXParserFactory.newInstance();
             SAXParser saxParser = factory.newSAXParser();
             ResultCountingHandler handler = new ResultCountingHandler();
-            saxParser.parse(new InputSource(new InputStreamReader(inputStream, charsetMatch.getName())), handler);
+            saxParser.parse(inputStream, handler);
 
             return handler.getCount();
 
@@ -531,29 +536,6 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
 
         return count - 1;
     }
-
-    private InputStream removeBOM(InputStream inputStream) throws IOException {
-        final byte[] bom = new byte[3];
-        inputStream.read(bom);
-        if ((bom[0] == (byte) 0xEF) && (bom[1] == (byte) 0xBB) && (bom[2] == (byte) 0xBF)) {
-            return inputStream;
-        } else {
-            return new SequenceInputStream(new ByteArrayInputStream(bom), inputStream);
-        }
-    }
-
-    private InputStream skipWhitespace(InputStream inputStream) throws IOException {
-        PushbackInputStream pbStream = new PushbackInputStream(inputStream);
-        int b;
-        while ((b = pbStream.read()) != -1) {
-            if (!Character.isWhitespace(b)) {
-                pbStream.unread(b);
-                break;
-            }
-        }
-        return pbStream;
-    }
-
 
     private static class ResultCountingHandler extends DefaultHandler {
         private Long count = 0L;
