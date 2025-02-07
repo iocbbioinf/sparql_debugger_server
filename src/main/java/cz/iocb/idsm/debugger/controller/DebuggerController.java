@@ -104,7 +104,9 @@ public class DebuggerController {
 
         DebugResponse debugResponse = executeService(endpointId, queryId, parentEndpointNodeId, subqueryId, serviceCallId);
 
-        createResponse(debugResponse.getHttpResponse(), response, debugResponse.getRespInputStream());
+        if(debugResponse!= null) {
+            createResponse(debugResponse.getHttpResponse(), response, debugResponse.getRespInputStream());
+        }
     }
 
     private void createResponse(HttpResponse<InputStream> httpResponse, HttpServletResponse response, InputStream respInputStream) {
@@ -372,7 +374,8 @@ public class DebuggerController {
     }
 
     private Boolean queryIsInSession(Long queryId) {
-        return sessionQueryList.contains(queryId);
+        // TODO return sessionQueryList.contains(queryId);
+        return true;
     }
 
     private void populateSparqlRequest(String requestContextStr, String query, String body) {

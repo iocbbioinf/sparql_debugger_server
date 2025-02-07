@@ -10,7 +10,6 @@ import cz.iocb.idsm.debugger.model.Tree.Node;
 import cz.iocb.idsm.debugger.util.HttpUtil;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import jakarta.annotation.Resource;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +18,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.xml.sax.Attributes;
-import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
@@ -268,6 +266,7 @@ public class SparqlEndpointServiceImpl implements SparqlEndpointService{
         httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream())
                 .thenAccept(resp -> {
                     if(!cancellingQuerySet.contains(endpointCall.getQueryId())) {
+                        endpointCall.getCallThread().set(Thread.currentThread());
                         processResponse(resp, endpointCall, endpointCallNode, queryId);
                     }
                 })

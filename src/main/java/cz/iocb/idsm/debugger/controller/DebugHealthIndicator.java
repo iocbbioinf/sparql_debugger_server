@@ -25,7 +25,6 @@ public class DebugHealthIndicator implements HealthIndicator {
                     .withDetail("Number of canceled virtual threads", "" + SparqlEndpointServiceImpl.cancelCounter)
                     .build();
 
-            logger.debug("MMO-TMP: {}", result.toString());
             return result;
         } else {
             return Health.down()
