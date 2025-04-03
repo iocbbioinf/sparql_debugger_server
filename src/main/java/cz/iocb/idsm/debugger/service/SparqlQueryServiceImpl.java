@@ -232,6 +232,12 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
                             prefixName = "";
                         }
                     }
+
+                    if (inService) {
+                        newTokenStr = resolvePrefixedValue(token.getText(), prefixMap);
+                        inService = false;
+                    }
+
                 }
 
                 case SparqlLexerDebug.SERVICE -> {
@@ -276,7 +282,11 @@ public class SparqlQueryServiceImpl implements SparqlQueryService {
         String prefix = "";
         String value = "";
         if(strArr.length == 1) {
-            value = strArr[0].trim();
+            if(prefixedValue.startsWith(":")) {
+                value = strArr[0].trim();
+            } else {
+                prefix = strArr[0].trim();
+            }
         } else {
             prefix = strArr[0].trim();
             value = strArr[1].trim();
