@@ -8,6 +8,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+/**
+ * Scheduled task that cleans up old SPARQL queries.
+ * It runs daily at midnight and deletes queries that have exceeded
+ * their expiration time as defined by the configuration property.
+ */
 @Component
 @EnableScheduling
 public class QueryCleanerScheduledTask {
@@ -20,6 +25,9 @@ public class QueryCleanerScheduledTask {
 
     private static final Logger logger = LoggerFactory.getLogger(QueryCleanerScheduledTask.class);
 
+    /**
+     * Deletes old queries based on the expiration time.
+     */
     @Scheduled(cron = "0 0 0 * * ?") // Run every day at midnight
     public void deleteOldQueries() {
 
