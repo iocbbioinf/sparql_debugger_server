@@ -15,12 +15,17 @@ The server offers the following REST API endpoints:
 - `GET /query/{queryId}/call/{callId}/request`: Retrieve the request details of a specific service execution call.
 - `GET /query/{queryId}/call/{callId}/response`: Retrieve the response details of a specific service execution call.
 
+## Configuration
+
+All config. properties are stored in the file: `/src/main/java/resources/application.properties`
+Properties such as logging level, query execution time expiration etc. are configurable here.
+
 ## Build, Package, Run
 
 This is a Spring Boot Web application built using Gradle. You can use the following Gradle tasks:
 
 - `build`: Compiles the project.
-- `jar`: Packages the application into a JAR file.
+- `bootJar`: Packages the application into a JAR file.
 - `bootRun`: Runs the application locally.
 
 ## Deployment on the Cloud by Kubernetes

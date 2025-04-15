@@ -191,6 +191,56 @@ public class DebuggerController {
         return queryId;
     }
 
+    @GetMapping("/syncquery")
+    public Tree<EndpointCall> debugSyncQueryGet(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
+                              @RequestParam(name = PARAM_QUERY) String query,
+                              @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
+                              @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri
+    ) {
+
+        sparqlRequest.setType(SparqlRequestType.POST_FORM);
+        sparqlRequest.setQuery(query);
+        sparqlRequest.setNamedGraphUri(namedGraphUri);
+        sparqlRequest.setDefaultGraphUri(defaultGraphUri);
+
+        Map<String, String> newHeaderMap = new HashMap<>();
+        newHeaderMap.put("content-type", "application/x-www-form-urlencoded");
+//        newHeaderMap.put("accept", "application/sparql-results+xml, text/rdf n3, text/rdf ttl, text/rdf turtle, text/turtle, application/turtle, application/x-turtle, application/rdf xml, application/xml, application/sparql-results+json, text/csv, text/tab-separated-values, text/turtle, application/n-triples, application/ld+json");
+        newHeaderMap.put("accept", headerMap.get("accept"));
+
+
+
+        sparqlRequest.setHeaderMap(newHeaderMap);
+//        sparqlRequest.setHeaderMap(headerMap);
+
+        Tree<EndpointCall> executionTree = executeSyncQuery(endpoint);
+
+        sessionQueryList.add(executionTree.getRoot().getData().getQueryId());
+
+        return executionTree;
+    }
+
+    @PostMapping("/syncquery")
+    public Tree<EndpointCall> debugSyncQueryPost(@RequestHeader Map<String, String> headerMap, @RequestParam(name = "endpoint") String endpoint,
+                               @RequestParam(name = PARAM_QUERY, required = false) String query,
+                               @RequestParam(name = PARAM_NAMED_GRAPH_URI, required = false) String namedGraphUri,
+                               @RequestParam(name = PARAM_DEFAULT_GRAPH_URI, required = false) String defaultGraphUri,
+                               @RequestParam(name = PARAM_REQUEST_CONTEXT, required = false) String requestContext,
+                               @RequestBody(required = false) String body
+    ) {
+
+        logger.debug("debugSyncQueryGet - start: headerMap: {}", Arrays.toString(headerMap.keySet().toArray()));
+
+        populateSparqlRequest(requestContext, query, body);
+
+        Tree<EndpointCall> executionTree = executeSyncQuery(endpoint);
+
+        sessionQueryList.add(executionTree.getRoot().getData().getQueryId());
+
+        return executionTree;
+    }
+
+
     @GetMapping("/query/{queryId}/sse")
     public SseEmitter startSse(@PathVariable Long queryId) {
         if(!queryIsInSession(queryId)) {
@@ -284,6 +334,23 @@ public class DebuggerController {
         } catch (IOException e) {
             throw new SparqlDebugException("Unable to create endpoint response body.", e);
         }
+    }
+
+    private Tree<EndpointCall> executeSyncQuery(String endpoint) {
+
+        URI endpointUri;
+        try {
+            endpointUri = new URI(endpoint);
+        } catch (URISyntaxException e) {
+            throw new SparqlDebugException(format("Wrong IRI format: %s", endpoint), e);
+        }
+
+        Node<EndpointCall> endpointRoot = endpointService.createQueryEndpointRoot(endpointUri);
+
+        HttpRequest request = endpointService.prepareEndpointToCall(endpointUri, endpointRoot.getData().getQueryId(), endpointRoot);
+        endpointService.callEndpointSync(request, endpointUri, endpointRoot.getData().getQueryId(), endpointRoot);
+
+        return endpointRoot.getTree();
     }
 
     private String readNBytesFromFile(InputStream inputStream, int begin, int end, Boolean isCompressed, String charset) {

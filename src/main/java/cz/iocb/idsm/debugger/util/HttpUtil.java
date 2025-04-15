@@ -35,7 +35,7 @@ public class HttpUtil {
     public static final String PARAM_DEFAULT_GRAPH_URI = "default-graph-uri";
     public static final String PARAM_NAMED_GRAPH_URI = "named-graph-uri";
     public static final String PARAM_REQUEST_CONTEXT = "requestcontext";
-
+    public static final String SSE_ENABLED = "sseEnabled";
 
     public static final String HEADER_CONTENT_TYPE = "content-type";
 
@@ -45,15 +45,8 @@ public class HttpUtil {
     public static String prettyPrintRequest(HttpRequest request, String queryStr) {
         StringBuilder builder = new StringBuilder();
 
-        builder.append("Request Method: ").append(request.method()).append("\n");
-        builder.append("Request URI: ").append(request.uri()).append("\n");
 
-        HttpHeaders headers = request.headers();
-        builder.append("Headers:\n");
-        headers.map().forEach((k, v) -> builder.append("  ").append(k).append(": ").append(String.join(", ", v)).append("\n"));
-
-        builder.append("Body:\n");
-
+        builder.append("Query:\n");
         String prettyQueryStr = queryStr;
         try {
             prettyQueryStr = OpAsQuery.asQuery(Algebra.compile(QueryFactory.create(queryStr))).serialize();
@@ -62,6 +55,14 @@ public class HttpUtil {
         }
 
         builder.append(prettyQueryStr);
+
+        builder.append("Request Method: ").append(request.method()).append("\n");
+        builder.append("Request URL: ").append(request.uri()).append("\n");
+
+        HttpHeaders headers = request.headers();
+        builder.append("Headers:\n");
+        headers.map().forEach((k, v) -> builder.append("  ").append(k).append(": ").append(String.join(", ", v)).append("\n"));
+
 
 //        return URLDecoder.decode(builder.toString());
         return builder.toString();

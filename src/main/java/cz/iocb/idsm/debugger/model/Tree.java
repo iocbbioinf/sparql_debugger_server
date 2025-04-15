@@ -104,11 +104,13 @@ public class Tree<T> {
             return children;
         }
 
+        @JsonIgnore
         public Tree<T> getTree() {
             return tree;
         }
     }
 
+    @JsonIgnore
     public SseEmitter getEmitter() {
         return emitter;
     }
