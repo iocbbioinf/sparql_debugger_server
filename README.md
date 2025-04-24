@@ -9,8 +9,9 @@ The tool is divided into two main components:
 ## REST API
 
 The server offers the following REST API endpoints:
-
-- `GET, POST /query/{queryId}/delete`: Delete a query debugging instance.
+- `POST /syncquery`: Create and execute query and return results.
+- `GET POST /query`: Create async. query
+- `POST /query/{queryId}/delete`: Delete a query debugging instance.
 - `GET /query/{queryId}/sse`: Stream real-time updates for the service execution tree via Server-Sent Events (SSE).
 - `GET /query/{queryId}/call/{callId}/request`: Retrieve the request details of a specific service execution call.
 - `GET /query/{queryId}/call/{callId}/response`: Retrieve the response details of a specific service execution call.
@@ -22,11 +23,20 @@ Properties such as logging level, query execution time expiration etc. are confi
 
 ## Build, Package, Run
 
-This is a Spring Boot Web application built using Gradle. You can use the following Gradle tasks:
+This is a Spring Boot Web application built using Gradle. You can use the following Gradle tasks (with Gradle wrapper `.gradlew`)
 
 - `build`: Compiles the project.
 - `bootJar`: Packages the application into a JAR file.
 - `bootRun`: Runs the application locally.
+
+### Run app
+
+- by Gradle: `./gradlew bootRun`
+- or by Java: `java -jar path_to_jar/debugger-0.0.1-SNAPSHOT.jar`
+- Java version >= 21 required
+
+To run a local instance of the SPARQL Debugger, it must be accessible via a specific public URL, which should be set using the system variable `debugService`.
+When deploying with Kubernetes, this URL is preconfigured in the deployment descriptor.
 
 ## Deployment on the Cloud by Kubernetes
 
