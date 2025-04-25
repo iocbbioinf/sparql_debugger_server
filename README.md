@@ -9,7 +9,7 @@ The tool is divided into two main components:
 ## REST API
 
 The server offers the following REST API endpoints:
-- `POST /syncquery`: Create and execute query and return results.
+- `POST /syncquery`: Create and execute query and return query execution tree in JSON.
 - `GET POST /query`: Create async. query
 - `POST /query/{queryId}/delete`: Delete a query debugging instance.
 - `GET /query/{queryId}/sse`: Stream real-time updates for the service execution tree via Server-Sent Events (SSE).
